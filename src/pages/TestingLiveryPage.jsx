@@ -8,7 +8,7 @@ import { addWatermark } from '../utils/watermark'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { Download, Upload, Image as ImageIcon, Camera, Settings, Monitor } from 'lucide-react'
 
-function BusModel({ glbUrl, bodyUrl, alphaUrl, poseData }) {
+function BusModel({ glbUrl, bodyUrl, alphaUrl, zoom, fov }) {
   const { scene } = useGLTF(glbUrl)
   const { camera } = useThree()
   
@@ -40,19 +40,22 @@ function BusModel({ glbUrl, bodyUrl, alphaUrl, poseData }) {
     })
   }, [scene, bodyUrl, alphaUrl])
 
-  // Apply camera pose
+  // Apply manual camera settings
   useEffect(() => {
-    if (poseData && camera) {
-      camera.position.set(poseData.camera_pos.x, poseData.camera_pos.y, poseData.camera_pos.z)
-      camera.lookAt(poseData.target_pos.x, poseData.target_pos.y, poseData.target_pos.z)
+    if (camera) {
+      // Set FOV
+      camera.fov = Math.max(5, Math.min(120, fov))
       
-      if (poseData.camera_fov) {
-        camera.fov = Math.max(5, poseData.camera_fov)
-      }
+      // Apply zoom by adjusting camera distance
+      const baseDistance = 8
+      const targetDistance = baseDistance / zoom
+      const direction = camera.position.clone().normalize()
+      const newPosition = direction.multiplyScalar(targetDistance)
+      camera.position.copy(newPosition)
       
       camera.updateProjectionMatrix()
     }
-  }, [poseData, camera])
+  }, [camera, zoom, fov])
 
   return <primitive object={scene} />
 }
@@ -61,21 +64,30 @@ function CaptureHelper({ onReady }) {
   const { gl, scene, camera } = useThree()
   
   const captureScreenshot = useCallback((width = 1920, height = 1080) => {
-    // Set render size to HD
+    // Store original settings
     const originalSize = gl.getSize(new THREE.Vector2())
+    const originalPixelRatio = gl.getPixelRatio()
+    
+    // Set high quality render settings
+    gl.setPixelRatio(1)
     gl.setSize(width, height, false)
     
     // Update camera aspect ratio
+    const originalAspect = camera.aspect
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     
-    // Render
+    // Clear and render
+    gl.clear()
     gl.render(scene, camera)
+    
+    // Get the rendered canvas
     const canvas = gl.domElement
     
-    // Restore original size
+    // Restore original settings
+    gl.setPixelRatio(originalPixelRatio)
     gl.setSize(originalSize.x, originalSize.y, false)
-    camera.aspect = originalSize.x / originalSize.y
+    camera.aspect = originalAspect
     camera.updateProjectionMatrix()
     
     return canvas
@@ -90,20 +102,18 @@ function CaptureHelper({ onReady }) {
 
 export default function TestingLiveryPage() {
   const [models, setModels] = useState([])
-  const [poses, setPoses] = useState([])
   const [selectedModelId, setSelectedModelId] = useState('')
-  const [selectedPoseId, setSelectedPoseId] = useState('')
   const [bodyFile, setBodyFile] = useState(null)
   const [alphaFile, setAlphaFile] = useState(null)
   const [bodyUrl, setBodyUrl] = useState(null)
   const [alphaUrl, setAlphaUrl] = useState(null)
+  const [zoom, setZoom] = useState(1.0)
+  const [fov, setFov] = useState(45)
   const [loading, setLoading] = useState(true)
-  const [loadingPoses, setLoadingPoses] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const captureRef = useRef(null)
 
   const selectedModel = models.find(m => m.id === selectedModelId)
-  const selectedPose = poses.find(p => p.id === selectedPoseId)
   
   // Use 3D model loader with progress
   const { 
@@ -117,15 +127,6 @@ export default function TestingLiveryPage() {
     loadModels()
   }, [])
 
-  useEffect(() => {
-    if (selectedModelId) {
-      loadPoses()
-    } else {
-      setPoses([])
-      setSelectedPoseId('')
-    }
-  }, [selectedModelId])
-
   async function loadModels() {
     try {
       setLoading(true)
@@ -135,18 +136,6 @@ export default function TestingLiveryPage() {
       console.error('Error loading models:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function loadPoses() {
-    try {
-      setLoadingPoses(true)
-      const { data } = await supabase.from('poses').select('*').eq('model_id', selectedModelId).order('name')
-      setPoses(data || [])
-    } catch (error) {
-      console.error('Error loading poses:', error)
-    } finally {
-      setLoadingPoses(false)
     }
   }
 
@@ -179,12 +168,15 @@ export default function TestingLiveryPage() {
     try {
       setDownloading(true)
       
-      const canvas = captureRef.current(1920, 1080) // HD 1080p
+      // Capture the canvas
+      const canvas = captureRef.current(1920, 1080)
+      
+      // Add watermark
       const watermarkedDataUrl = await addWatermark(canvas, 1920, 1080)
       
       // Create download link
       const link = document.createElement('a')
-      link.download = `livery_preview_${selectedModel?.name || 'unknown'}_${Date.now()}.png`
+      link.download = `livery_preview_${selectedModel?.name?.replace(/\s+/g, '_') || 'unknown'}_${Date.now()}.png`
       link.href = watermarkedDataUrl
       
       // Trigger download
@@ -225,8 +217,8 @@ export default function TestingLiveryPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Mobile: Preview First, Desktop: Controls First */}
-          <div className="order-2 lg:order-1 space-y-6">
+          {/* Left Column - Controls */}
+          <div className="space-y-6">
             {/* Model Selection Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center space-x-3 mb-4">
@@ -236,40 +228,18 @@ export default function TestingLiveryPage() {
                 <h3 className="text-lg font-semibold text-slate-900">Pilih Model</h3>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Model 3D</label>
-                  <select 
-                    className="w-full p-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all" 
-                    value={selectedModelId} 
-                    onChange={e => setSelectedModelId(e.target.value)}
-                  >
-                    <option value="">-- Pilih Model Bus --</option>
-                    {models.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Pose Kamera</label>
-                  <select 
-                    className="w-full p-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all" 
-                    value={selectedPoseId} 
-                    onChange={e => setSelectedPoseId(e.target.value)}
-                    disabled={loadingPoses || !selectedModelId}
-                  >
-                    <option value="">
-                      {loadingPoses ? '-- Memuat Pose --' : '-- Pilih Pose (Opsional) --'}
-                    </option>
-                    {poses.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.camera_zoom && ` (${p.camera_zoom.toFixed(1)}x zoom)`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Model 3D</label>
+                <select 
+                  className="w-full p-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all" 
+                  value={selectedModelId} 
+                  onChange={e => setSelectedModelId(e.target.value)}
+                >
+                  <option value="">-- Pilih Model Bus --</option>
+                  {models.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -337,61 +307,53 @@ export default function TestingLiveryPage() {
               </div>
             </div>
 
-            {/* Instructions Card */}
-            <div className="bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl p-6 text-white">
+            {/* Camera Controls Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Settings className="w-5 h-5" />
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <Camera className="w-5 h-5 text-slate-600" />
                 </div>
-                <h4 className="text-lg font-semibold">Cara Menggunakan</h4>
+                <h3 className="text-lg font-semibold text-slate-900">Pengaturan Kamera</h3>
               </div>
-              <ol className="space-y-2 text-sm text-slate-100">
-                <li className="flex items-start space-x-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">1</span>
-                  <span>Pilih model 3D bus dari dropdown</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">2</span>
-                  <span>Upload texture body dan/atau alpha</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">3</span>
-                  <span>Pilih pose untuk positioning (opsional)</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">4</span>
-                  <span>Gunakan mouse untuk adjust kamera</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">5</span>
-                  <span>Download preview dengan kualitas HD</span>
-                </li>
-              </ol>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Zoom Level</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="3.0"
+                      step="0.1"
+                      value={zoom}
+                      onChange={e => setZoom(parseFloat(e.target.value))}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-mono w-12 text-slate-600">{zoom.toFixed(1)}x</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Field of View</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="15"
+                      max="90"
+                      step="1"
+                      value={fov}
+                      onChange={e => setFov(parseInt(e.target.value))}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-mono w-12 text-slate-600">{fov}°</span>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* Status Card */}
-            {isPreviewReady && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                    <Camera className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-emerald-900">Preview Siap!</h4>
-                    <p className="text-sm text-emerald-700">
-                      Model: <strong>{selectedModel.name}</strong>
-                      {selectedPose && (
-                        <span> • Pose: <strong>{selectedPose.name}</strong></span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Mobile: Preview Second (Above Controls), Desktop: Preview Second */}
-          <div className="order-1 lg:order-2">
+          {/* Right Column - Preview */}
+          <div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
                 <h3 className="text-lg font-semibold text-slate-900">Preview 3D</h3>
@@ -412,17 +374,14 @@ export default function TestingLiveryPage() {
               </div>
               
               <LoadingOverlay
-                isVisible={modelLoading || loadingPoses}
+                isVisible={modelLoading}
                 progress={modelLoading ? loadingProgress : 0}
-                message={modelLoading ? loadingMessage : (loadingPoses ? 'Loading poses...' : '')}
+                message={modelLoading ? loadingMessage : ''}
               >
                 <div className="border border-slate-200 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden" style={{ width: '100%', aspectRatio: '16/9' }}>
                   {selectedModel && isPreviewReady ? (
                     <Canvas 
-                      camera={{ 
-                        position: selectedPose ? [selectedPose.camera_pos.x, selectedPose.camera_pos.y, selectedPose.camera_pos.z] : [5, 2, 5], 
-                        fov: selectedPose ? Math.max(5, selectedPose.camera_fov || 45) : 45 
-                      }}
+                      camera={{ position: [5, 2, 5], fov: Math.max(1, Math.min(90, fov)) }}
                       style={{ width: '100%', height: '100%' }}
                     >
                       {/* Enhanced lighting for better visibility */}
@@ -438,7 +397,8 @@ export default function TestingLiveryPage() {
                         glbUrl={selectedModel.glb_url}
                         bodyUrl={bodyUrl}
                         alphaUrl={alphaUrl}
-                        poseData={selectedPose}
+                        zoom={zoom}
+                        fov={fov}
                       />
                       
                       <OrbitControls enablePan enableZoom enableRotate />
@@ -497,6 +457,25 @@ export default function TestingLiveryPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Status Card */}
+              {isPreviewReady && (
+                <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <Camera className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-emerald-900">Preview Siap!</h4>
+                      <p className="text-sm text-emerald-700">
+                        Model: <strong>{selectedModel.name}</strong>
+                        <span> • Zoom: <strong>{zoom.toFixed(1)}x</strong></span>
+                        <span> • FOV: <strong>{fov}°</strong></span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

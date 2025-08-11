@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -112,9 +112,13 @@ function AppContent() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={
-            <ProtectedRoute requireAdmin={true}>
-              <ModelsPage />
-            </ProtectedRoute>
+            isAdmin ? (
+              <ProtectedRoute requireAdmin={true}>
+                <ModelsPage />
+              </ProtectedRoute>
+            ) : (
+              <Navigate to="/testing" replace />
+            )
           } />
           <Route path="/models" element={
             <ProtectedRoute requireAdmin={true}>
