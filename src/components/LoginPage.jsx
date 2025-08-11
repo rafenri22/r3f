@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LogIn, User, Lock, Eye, EyeOff } from 'lucide-react'
+import { LogIn, User, Lock, Eye, EyeOff, UserPlus } from 'lucide-react'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -132,6 +133,29 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center">
+            <div className="flex-1 border-t border-white/20"></div>
+            <span className="px-4 text-slate-400 text-sm">atau</span>
+            <div className="flex-1 border-t border-white/20"></div>
+          </div>
+
+          {/* Join Member Button */}
+          <Link
+            to="/join-member"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-xl flex items-center justify-center space-x-2 border border-blue-400/20"
+          >
+            <UserPlus className="h-5 w-5" />
+            <span>Join Member</span>
+          </Link>
+
+          {/* Info */}
+          <div className="mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-xl">
+            <p className="text-blue-200 text-xs text-center">
+              Belum punya akun? Klik "Join Member" untuk mendaftar
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

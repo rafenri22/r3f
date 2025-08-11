@@ -4,11 +4,13 @@ import { AuthProvider } from './contexts/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './contexts/AuthContext'
+import HomePage from './pages/HomePage'
 import ModelsPage from './pages/ModelsPage'
 import PosesPage from './pages/PosesPage'
 import ArmadaPage from './pages/ArmadaPage'
 import TestingLiveryPage from './pages/TestingLiveryPage'
 import UsersPage from './pages/UsersPage'
+import JoinMemberPage from './pages/JoinMemberPage'
 import Footer from './components/Footer'
 import { LogOut, User, Menu, X, Star } from 'lucide-react'
 
@@ -24,6 +26,7 @@ function AppContent() {
   }
 
   const navigationItems = [
+    { path: '/', label: 'Home', shortLabel: 'Home' },
     ...(isAdmin ? [
       { path: '/models', label: 'Models', shortLabel: 'Models' },
       { path: '/poses', label: 'Poses', shortLabel: 'Poses' },
@@ -43,7 +46,7 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo dan Brand */}
-            <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+            <Link to="/" className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
               <div className="flex items-center justify-center">
                 <img 
                   src="tja.png" 
@@ -55,7 +58,7 @@ function AppContent() {
                 <h1 className="text-lg sm:text-xl font-bold text-slate-900 truncate">Portal TJA</h1>
                 <p className="text-xs text-slate-500 hidden sm:block">PT. Trijaya Agung Lestari</p>
               </div>
-            </div>
+            </Link>
             
             {/* Desktop Navigation - Hidden on mobile */}
             <nav className="hidden lg:flex space-x-1">
@@ -152,17 +155,14 @@ function AppContent() {
 
       <main className="flex-1">
         <Routes>
+          {/* Home route - accessible to all authenticated users */}
           <Route path="/" element={
-            isAdmin ? (
-              <ProtectedRoute requireAdmin={true}>
-                <div className="p-4 sm:p-6 lg:p-8">
-                  <ModelsPage />
-                </div>
-              </ProtectedRoute>
-            ) : (
-              <Navigate to="/testing" replace />
-            )
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
           } />
+          
+          {/* Admin only routes */}
           <Route path="/models" element={
             <ProtectedRoute requireAdmin={true}>
               <div className="p-4 sm:p-6 lg:p-8">
@@ -191,11 +191,16 @@ function AppContent() {
               </div>
             </ProtectedRoute>
           } />
+          
+          {/* Testing route - accessible to all authenticated users */}
           <Route path="/testing" element={
             <ProtectedRoute>
               <TestingLiveryPage />
             </ProtectedRoute>
           } />
+
+          {/* Join Member route - public access (outside auth guard) */}
+          <Route path="/join-member" element={<JoinMemberPage />} />
         </Routes>
       </main>
 
@@ -207,9 +212,17 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AuthGuard>
-        <AppContent />
-      </AuthGuard>
+      <Routes>
+        {/* Public route for join member */}
+        <Route path="/join-member" element={<JoinMemberPage />} />
+        
+        {/* All other routes require authentication */}
+        <Route path="/*" element={
+          <AuthGuard>
+            <AppContent />
+          </AuthGuard>
+        } />
+      </Routes>
     </AuthProvider>
   )
 }
