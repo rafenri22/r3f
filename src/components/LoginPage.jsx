@@ -121,7 +121,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-slate-400 text-sm">
-          © 2024 PT. Trijaya Agung Lestari
+          © 2025 PT. Trijaya Agung Lestari
         </div>
       </div>
     </div>
