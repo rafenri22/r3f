@@ -26,11 +26,11 @@ export async function getSignedUrl(bucket, path, expiresIn = 3600) {
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
-      throw new Error('User not authenticated')
+      throw new Error('User not authenticated with Supabase')
     }
 
     // Call the edge function to get signed URL
-    const { data, error } = await supabase.functions.invoke('get-signed-url', {
+    const { data, error } = await supabase.functions.invoke('signed-url', {
       body: {
         bucket,
         path,
@@ -73,6 +73,15 @@ export async function getSignedUrl(bucket, path, expiresIn = 3600) {
  */
 export async function uploadFile(bucket, path, file) {
   try {
+    // Ensure we have a valid session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('User not authenticated with Supabase')
+    }
+
+    console.log('Uploading file to bucket:', bucket, 'path:', path)
+    
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, file, { 
@@ -80,7 +89,12 @@ export async function uploadFile(bucket, path, file) {
         upsert: false
       })
 
-    if (error) throw error
+    if (error) {
+      console.error('Upload error:', error)
+      throw error
+    }
+
+    console.log('File uploaded successfully:', data)
 
     return {
       path: data.path,
