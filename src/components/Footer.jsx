@@ -9,7 +9,6 @@ export default function Footer() {
             © 2025 PT. Trijaya Agung Lestari. All rights reserved.
           </div>
           <div className="flex items-center text-slate-400 text-xs sm:text-sm">
-            <span>Dibuat oleh Rafky Ferdian Algiffari</span>
           </div>
         </div>
       </div>

@@ -63,19 +63,13 @@ export default function HomePage() {
 
   const stats = [
     {
-      label: 'Model 3D',
-      value: isEp3 ? 'Free + Sale' : 'Free',
-      icon: Monitor,
-      color: 'text-blue-600 bg-blue-100'
-    },
-    {
       label: 'Status',
       value: isAdmin ? 'Admin' : 'Member TJA',
       icon: isAdmin ? Shield : Users,
       color: isAdmin ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
     },
     {
-      label: 'EP3 Access',
+      label: 'Mod Ep3 Access',
       value: isEp3 ? 'Aktif' : 'Tidak Aktif',
       icon: Star,
       color: isEp3 ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100'
@@ -106,11 +100,11 @@ export default function HomePage() {
           </p>
           
           {/* User Status Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
             {stats.map((stat, index) => (
               <div key={index} className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.color} rounded-xl flex items-center justify-center mx-auto mb-3`}>
-                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 justify-items-center" />
                 </div>
                 <h3 className="font-medium text-slate-700 text-sm sm:text-base mb-1">{stat.label}</h3>
                 <p className="text-xs sm:text-sm font-semibold text-slate-900">{stat.value}</p>
@@ -175,19 +169,19 @@ export default function HomePage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 text-center">
             <div className="space-y-2">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">Download Asset</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-900">Download Asset</div>
               <div className="text-xs sm:text-sm text-slate-600">*Dalam proses Pengembangan</div>
             </div>
             <div className="space-y-2">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">Data Armada</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-900">Data Armada</div>
               <div className="text-xs sm:text-sm text-slate-600">*Dalam proses Pengembangan</div>
             </div>
             <div className="space-y-2">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">Data Karyawan</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-900">Data Karyawan</div>
               <div className="text-xs sm:text-sm text-slate-600">*Dalam proses Pengembangan</div>
             </div>
             <div className="space-y-2">
-              <div className="text-xl sm:text-2xl font-bold text-red-600">Testing Mod&Livery</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-900">Testing Mod&Livery</div>
               <div className="text-xs sm:text-sm text-slate-600">Tersedia</div>
             </div>
           </div>
