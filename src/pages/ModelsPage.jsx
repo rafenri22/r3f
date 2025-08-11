@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import ModelUploader from '../ui/ModelUploader'
+import LoadingProgress from '../components/LoadingProgress'
 
 export default function ModelsPage() {
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(null)
 
   useEffect(() => { 
     load() 
@@ -31,6 +33,7 @@ export default function ModelsPage() {
     }
     
     try {
+      setDeleting(id)
       const { error } = await supabase.from('models').delete().eq('id', id)
       if (error) throw error
       
@@ -39,6 +42,8 @@ export default function ModelsPage() {
     } catch (error) {
       console.error('Error deleting model:', error)
       alert('Gagal menghapus model: ' + error.message)
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -55,8 +60,8 @@ export default function ModelsPage() {
           <h3 className="font-semibold mb-3">Model yang Tersedia</h3>
           
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              Memuat model...
+            <div className="p-4 border rounded bg-white">
+              <LoadingProgress progress={100} message="Loading models..." />
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -83,13 +88,20 @@ export default function ModelsPage() {
                         Preview
                       </a>
                       <button 
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50"
                         onClick={() => deleteModel(m.id)}
+                        disabled={deleting === m.id}
                       >
-                        Hapus
+                        {deleting === m.id ? 'Deleting...' : 'Hapus'}
                       </button>
                     </div>
                   </div>
+                  
+                  {deleting === m.id && (
+                    <div className="mt-2">
+                      <LoadingProgress progress={50} message="Deleting model..." />
+                    </div>
+                  )}
                 </div>
               ))}
               

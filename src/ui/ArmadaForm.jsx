@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { useUploadProgress } from '../hooks/useUploadProgress'
+import { useModel3DLoader } from '../hooks/useModel3DLoader'
+import LoadingProgress from '../components/LoadingProgress'
+import LoadingOverlay from '../components/LoadingOverlay'
 
 function BusPreview({ glbUrl, bodyUrl, alphaUrl, pose, poseData }) {
   const { scene } = useGLTF(glbUrl)
@@ -41,6 +45,12 @@ function BusPreview({ glbUrl, bodyUrl, alphaUrl, pose, poseData }) {
     if (poseData && camera) {
       camera.position.set(poseData.camera_pos.x, poseData.camera_pos.y, poseData.camera_pos.z)
       camera.lookAt(poseData.target_pos.x, poseData.target_pos.y, poseData.target_pos.z)
+      
+      // Apply zoom and FOV if available
+      if (poseData.camera_fov) {
+        camera.fov = poseData.camera_fov
+      }
+      
       camera.updateProjectionMatrix()
     }
   }, [poseData, camera])
@@ -80,8 +90,27 @@ export default function ArmadaForm({ models, onSuccess }) {
   const [previewModelUrl, setPreviewModelUrl] = useState(null)
   const [previewBodyUrl, setPreviewBodyUrl] = useState(null)
   const [previewAlphaUrl, setPreviewAlphaUrl] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingPoses, setLoadingPoses] = useState(false)
   const captureFunction = useRef(null)
+
+  // Upload progress hook
+  const {
+    uploadProgress,
+    isUploading,
+    uploadMessage,
+    startUpload,
+    updateProgress,
+    finishUpload,
+    cancelUpload
+  } = useUploadProgress()
+
+  // 3D model loading with progress
+  const { 
+    loadingProgress: modelLoadingProgress, 
+    isLoading: modelLoading, 
+    loadingMessage: modelLoadingMessage,
+    error: modelError 
+  } = useModel3DLoader(previewModelUrl)
 
   useEffect(() => { 
     if (modelId) loadPoses() 
@@ -98,12 +127,15 @@ export default function ArmadaForm({ models, onSuccess }) {
 
   async function loadPoses() {
     try {
+      setLoadingPoses(true)
       const { data } = await supabase.from('poses').select('*').eq('model_id', modelId)
       setPoses(data || [])
       const m = models.find(x => x.id === modelId)
       setPreviewModelUrl(m?.glb_url || null)
     } catch (error) {
       console.error('Error loading poses:', error)
+    } finally {
+      setLoadingPoses(false)
     }
   }
 
@@ -137,25 +169,65 @@ export default function ArmadaForm({ models, onSuccess }) {
     }
   }
 
+  async function uploadFile(bucket, file, key) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const progress = (e.loaded / e.total) * 100
+          updateProgress(progress, `Uploading ${file.name}...`)
+        }
+      })
+      
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve()
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`))
+        }
+      }
+      
+      xhr.onerror = () => reject(new Error('Network error during upload'))
+      
+      // Use Supabase storage upload
+      supabase.storage
+        .from(bucket)
+        .upload(key, file)
+        .then(({ error }) => {
+          if (error) reject(error)
+          else resolve()
+        })
+        .catch(reject)
+    })
+  }
+
   async function submit() {
     if (!kode || !modelId || !bodyFile || !alphaFile || !division) {
       return alert('Lengkapi semua data yang diperlukan (kode bus, model, division, body texture, alpha texture)')
     }
     
-    setLoading(true)
     try {
-      // Upload liveries
+      startUpload('Preparing files...')
+      
+      // Upload liveries with progress tracking
       const ts = Date.now()
       const bodyKey = `liveries/${kode}_${ts}_body_${bodyFile.name}`
       const alphaKey = `liveries/${kode}_${ts}_alpha_${alphaFile.name}`
       
-      const [bodyUpload, alphaUpload] = await Promise.all([
-        supabase.storage.from('liveries').upload(bodyKey, bodyFile),
-        supabase.storage.from('liveries').upload(alphaKey, alphaFile)
-      ])
+      updateProgress(10, 'Uploading body texture...')
+      const { error: bodyError } = await supabase.storage
+        .from('liveries')
+        .upload(bodyKey, bodyFile)
+      
+      if (bodyError) throw bodyError
+      
+      updateProgress(40, 'Uploading alpha texture...')
+      const { error: alphaError } = await supabase.storage
+        .from('liveries')
+        .upload(alphaKey, alphaFile)
 
-      if (bodyUpload.error) throw bodyUpload.error
-      if (alphaUpload.error) throw alphaUpload.error
+      if (alphaError) throw alphaError
       
       const bodyUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/liveries/${encodeURIComponent(bodyKey)}`
       const alphaUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/liveries/${encodeURIComponent(alphaKey)}`
@@ -163,13 +235,18 @@ export default function ArmadaForm({ models, onSuccess }) {
       // Upload thumbnail if provided
       let thumbnailUrl = null
       if (thumbnailFile) {
+        updateProgress(70, 'Uploading thumbnail...')
         const thumbnailKey = `thumbnails/${kode}_${ts}_thumbnail_${thumbnailFile.name}`
-        const thumbnailUpload = await supabase.storage.from('thumbnails').upload(thumbnailKey, thumbnailFile)
+        const { error: thumbnailError } = await supabase.storage
+          .from('thumbnails')
+          .upload(thumbnailKey, thumbnailFile)
         
-        if (thumbnailUpload.error) throw thumbnailUpload.error
+        if (thumbnailError) throw thumbnailError
         
         thumbnailUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/thumbnails/${encodeURIComponent(thumbnailKey)}`
       }
+      
+      updateProgress(90, 'Saving to database...')
       
       // Insert armada row
       const armadaData = { 
@@ -187,6 +264,9 @@ export default function ArmadaForm({ models, onSuccess }) {
       const { error } = await supabase.from('armada').insert(armadaData)
       
       if (error) throw error
+      
+      updateProgress(100, 'Armada saved successfully!')
+      finishUpload()
       
       alert('Armada berhasil ditambahkan!')
       
@@ -213,43 +293,54 @@ export default function ArmadaForm({ models, onSuccess }) {
       
     } catch (e) { 
       console.error(e)
+      cancelUpload()
       alert('Gagal menambahkan armada: ' + e.message) 
-    } finally {
-      setLoading(false)
     }
   }
+
+  const isPreviewReady = previewModelUrl && (previewBodyUrl || previewAlphaUrl)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="p-4 border rounded bg-white">
         <h3 className="font-semibold mb-4">Tambah Armada</h3>
         
+        {isUploading && (
+          <div className="mb-4">
+            <LoadingProgress progress={uploadProgress} message={uploadMessage} />
+          </div>
+        )}
+        
         <div className="space-y-3">
           <input 
             className="w-full p-2 border rounded" 
             placeholder="Kode bus (TJA-001)" 
             value={kode} 
-            onChange={e => setKode(e.target.value)} 
+            onChange={e => setKode(e.target.value)}
+            disabled={isUploading}
           />
           
           <input 
             className="w-full p-2 border rounded" 
             placeholder="Nickname" 
             value={nickname} 
-            onChange={e => setNickname(e.target.value)} 
+            onChange={e => setNickname(e.target.value)}
+            disabled={isUploading}
           />
           
           <input 
             className="w-full p-2 border rounded" 
             placeholder="Crew" 
             value={crew} 
-            onChange={e => setCrew(e.target.value)} 
+            onChange={e => setCrew(e.target.value)}
+            disabled={isUploading}
           />
 
           <select 
             className="w-full p-2 border rounded" 
             value={division} 
             onChange={e => setDivision(e.target.value)}
+            disabled={isUploading}
           >
             <option value="">-- Pilih Division --</option>
             <option value="AKAP">AKAP</option>
@@ -260,6 +351,7 @@ export default function ArmadaForm({ models, onSuccess }) {
             className="w-full p-2 border rounded" 
             value={modelId} 
             onChange={e => setModelId(e.target.value)}
+            disabled={isUploading}
           >
             <option value="">-- Pilih Model --</option>
             {models.map(m => (
@@ -271,10 +363,14 @@ export default function ArmadaForm({ models, onSuccess }) {
             className="w-full p-2 border rounded" 
             value={poseId} 
             onChange={e => setPoseId(e.target.value)}
+            disabled={isUploading || loadingPoses}
           >
-            <option value="">-- Pilih Pose (Opsional) --</option>
+            <option value="">{loadingPoses ? '-- Loading Poses --' : '-- Pilih Pose (Opsional) --'}</option>
             {poses.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name} 
+                {p.camera_zoom && ` (${p.camera_zoom.toFixed(1)}x zoom)`}
+              </option>
             ))}
           </select>
 
@@ -287,7 +383,8 @@ export default function ArmadaForm({ models, onSuccess }) {
                 const file = e.target.files?.[0] || null
                 setBodyFile(file)
                 setPreviewBodyUrl(fileToUrl(file))
-              }} 
+              }}
+              disabled={isUploading}
             />
             <p className="text-xs text-gray-500 mt-1">Texture untuk body bus</p>
           </div>
@@ -301,7 +398,8 @@ export default function ArmadaForm({ models, onSuccess }) {
                 const file = e.target.files?.[0] || null
                 setAlphaFile(file)
                 setPreviewAlphaUrl(fileToUrl(file))
-              }} 
+              }}
+              disabled={isUploading}
             />
             <p className="text-xs text-gray-500 mt-1">Texture untuk kaca/alpha channel</p>
           </div>
@@ -314,7 +412,8 @@ export default function ArmadaForm({ models, onSuccess }) {
               onChange={e => { 
                 const file = e.target.files?.[0] || null
                 setThumbnailFile(file)
-              }} 
+              }}
+              disabled={isUploading}
             />
             <p className="text-xs text-gray-500 mt-1">Upload gambar thumbnail secara manual, atau gunakan screenshot dari preview 3D</p>
             {thumbnailFile && (
@@ -325,13 +424,22 @@ export default function ArmadaForm({ models, onSuccess }) {
           <button 
             className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" 
             onClick={submit} 
-            disabled={loading}
+            disabled={isUploading}
           >
-            {loading ? 'Menyimpan...' : 'Simpan Armada'}
+            {isUploading ? 'Menyimpan...' : 'Simpan Armada'}
           </button>
+          
+          {isUploading && (
+            <button 
+              className="w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" 
+              onClick={cancelUpload}
+            >
+              Cancel Upload
+            </button>
+          )}
         </div>
 
-        {previewBodyUrl && previewAlphaUrl && (
+        {isPreviewReady && !modelLoading && (
           <div className="mt-4 p-3 bg-blue-50 rounded">
             <p className="text-sm text-blue-800 mb-2">✓ Texture siap. Gunakan preview 3D untuk melihat hasil dan ambil screenshot untuk thumbnail.</p>
           </div>
@@ -341,38 +449,55 @@ export default function ArmadaForm({ models, onSuccess }) {
       <div>
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-semibold">Preview 3D</h3>
-          {previewModelUrl && previewBodyUrl && (
+          {isPreviewReady && !modelLoading && (
             <button 
               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
               onClick={takeScreenshot}
+              disabled={isUploading}
             >
               📸 Screenshot
             </button>
           )}
         </div>
         
-        <div className="border rounded" style={{ height: 420 }}>
-          {previewModelUrl ? (
-            <Canvas camera={{ position: [5, 2, 5], fov: 45 }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[5, 10, 5]} intensity={1} />
-              <directionalLight position={[-3, 3, -3]} intensity={0.4} />
-              <BusPreview 
-                glbUrl={previewModelUrl}
-                bodyUrl={previewBodyUrl}
-                alphaUrl={previewAlphaUrl}
-                pose={poseId}
-                poseData={selectedPose}
-              />
-              <OrbitControls enablePan enableZoom enableRotate />
-              <CameraCapture onCapture={(captureFunc) => { captureFunction.current = captureFunc }} />
-            </Canvas>
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 bg-gray-50">
-              Pilih model untuk melihat preview
-            </div>
-          )}
-        </div>
+        <LoadingOverlay
+          isVisible={modelLoading || loadingPoses}
+          progress={modelLoading ? modelLoadingProgress : 0}
+          message={modelLoading ? modelLoadingMessage : (loadingPoses ? 'Loading poses...' : '')}
+        >
+          <div className="border rounded" style={{ height: 420 }}>
+            {previewModelUrl ? (
+              <Canvas camera={{ 
+                position: [5, 2, 5], 
+                fov: selectedPose?.camera_fov || 45 
+              }}>
+                <ambientLight intensity={0.6} />
+                <directionalLight position={[5, 10, 5]} intensity={1} />
+                <directionalLight position={[-3, 3, -3]} intensity={0.4} />
+                <BusPreview 
+                  glbUrl={previewModelUrl}
+                  bodyUrl={previewBodyUrl}
+                  alphaUrl={previewAlphaUrl}
+                  pose={poseId}
+                  poseData={selectedPose}
+                />
+                <OrbitControls enablePan enableZoom enableRotate />
+                <CameraCapture onCapture={(captureFunc) => { captureFunction.current = captureFunc }} />
+              </Canvas>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500 bg-gray-50">
+                {modelError ? (
+                  <div className="text-red-500 text-center">
+                    <div>Error loading model</div>
+                    <div className="text-xs">{modelError}</div>
+                  </div>
+                ) : (
+                  'Pilih model untuk melihat preview'
+                )}
+              </div>
+            )}
+          </div>
+        </LoadingOverlay>
         
         <div className="mt-2 space-y-1 text-xs">
           {previewBodyUrl && (
@@ -382,7 +507,11 @@ export default function ArmadaForm({ models, onSuccess }) {
             <div className="text-green-600">✓ Alpha texture loaded</div>
           )}
           {selectedPose && (
-            <div className="text-blue-600">✓ Pose: {selectedPose.name}</div>
+            <div className="text-blue-600">
+              ✓ Pose: {selectedPose.name}
+              {selectedPose.camera_zoom && ` (${selectedPose.camera_zoom.toFixed(1)}x zoom)`}
+              {selectedPose.camera_fov && ` (${selectedPose.camera_fov}° FOV)`}
+            </div>
           )}
         </div>
 
@@ -390,6 +519,7 @@ export default function ArmadaForm({ models, onSuccess }) {
           <h4 className="font-medium text-sm mb-2">Cara Screenshot:</h4>
           <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1">
             <li>Pastikan model dan texture sudah dimuat</li>
+            <li>Pilih pose yang sesuai (akan mengatur zoom dan FOV otomatis)</li>
             <li>Atur posisi kamera dengan mouse (drag untuk rotate, scroll untuk zoom)</li>
             <li>Klik tombol "📸 Screenshot" untuk ambil gambar</li>
             <li>Screenshot akan otomatis dijadikan thumbnail saat simpan armada</li>
