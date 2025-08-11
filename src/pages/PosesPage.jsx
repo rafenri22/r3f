@@ -1,19 +1,24 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import PoseEditor from '../ui/PoseEditor'
+import ModelUploader from '../ui/ModelUploader'
+import LoadingProgress from '../components/LoadingProgress'
 
-export default function PosesPage() {
+export default function ModelsPage() {
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(null)
 
   useEffect(() => { 
-    loadModels() 
+    load() 
   }, [])
 
-  async function loadModels() {
+  async function load() {
     try {
       setLoading(true)
-      const { data } = await supabase.from('models').select('*')
+      const { data } = await supabase
+        .from('models')
+        .select('*')
+        .order('created_at', { ascending: false })
       setModels(data || [])
     } catch (error) {
       console.error('Error loading models:', error)
@@ -22,51 +27,91 @@ export default function PosesPage() {
     }
   }
 
+  async function deleteModel(id) {
+    if (!confirm('Hapus model ini? Semua pose dan armada yang menggunakan model ini akan terpengaruh.')) {
+      return
+    }
+    
+    try {
+      setDeleting(id)
+      const { error } = await supabase.from('models').delete().eq('id', id)
+      if (error) throw error
+      
+      alert('Model berhasil dihapus!')
+      load()
+    } catch (error) {
+      console.error('Error deleting model:', error)
+      alert('Gagal menghapus model: ' + error.message)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto">
-      <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">Kelola Pose Screenshot</h2>
+      <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">Kelola Model 3D</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          {loading ? (
-            <div className="p-4 border rounded bg-white">
-              <div className="text-center py-8 text-gray-500">
-                Memuat model...
-              </div>
-            </div>
-          ) : (
-            <PoseEditor models={models} />
-          )}
+          <ModelUploader onUploaded={load} />
         </div>
         
         <div>
-          <h3 className="font-semibold mb-3">Panduan Pose Editor</h3>
-          <div className="p-4 bg-white border rounded space-y-3">
-            <div className="text-sm text-gray-700">
-              <h4 className="font-medium mb-2">Cara Menggunakan:</h4>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Pilih model 3D dari dropdown</li>
-                <li>Gunakan mouse untuk mengatur posisi kamera:
-                  <ul className="list-disc list-inside ml-4 mt-1">
-                    <li>Drag kiri: Rotasi kamera</li>
-                    <li>Drag kanan: Pan kamera</li>
-                    <li>Scroll: Zoom in/out</li>
-                  </ul>
-                </li>
-                <li>Atur posisi yang diinginkan untuk screenshot</li>
-                <li>Beri nama pose yang deskriptif</li>
-                <li>Klik "Simpan Pose" untuk menyimpan</li>
-              </ol>
+          <h3 className="font-semibold mb-3">Model yang Tersedia</h3>
+          
+          {loading ? (
+            <div className="p-4 border rounded bg-white">
+              <LoadingProgress progress={100} message="Loading models..." />
             </div>
-            
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
-              <strong>Tips:</strong> Buat beberapa pose berbeda untuk setiap model (depan, samping, 3/4, dll) agar admin memiliki pilihan saat menambah armada.
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {models.map(m => (
+                <div key={m.id} className="p-3 sm:p-4 border rounded bg-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-base sm:text-lg">{m.name}</div>
+                      <div className="text-xs sm:text-sm text-gray-500 break-all">
+                        {m.glb_url}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        ID: {m.id}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 flex-shrink-0">
+                      <a 
+                        className="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 whitespace-nowrap" 
+                        href={m.glb_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        Preview
+                      </a>
+                      <button 
+                        className="px-3 py-1 text-xs sm:text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50 whitespace-nowrap"
+                        onClick={() => deleteModel(m.id)}
+                        disabled={deleting === m.id}
+                      >
+                        {deleting === m.id ? 'Deleting...' : 'Hapus'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {deleting === m.id && (
+                    <div className="mt-2">
+                      <LoadingProgress progress={50} message="Deleting model..." />
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {models.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  Belum ada model yang diupload
+                </div>
+              )}
             </div>
-            
-            <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
-              <strong>Catatan:</strong> Pose yang disimpan akan digunakan sebagai posisi kamera default saat admin membuat screenshot thumbnail untuk armada.
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
