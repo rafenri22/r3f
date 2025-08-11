@@ -23,10 +23,10 @@ export default function PosesPage() {
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-medium mb-6">Kelola Pose Screenshot</h2>
+    <div className="max-w-7xl mx-auto">
+      <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">Kelola Pose Screenshot</h2>
       
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div>
           {loading ? (
             <div className="p-4 border rounded bg-white">

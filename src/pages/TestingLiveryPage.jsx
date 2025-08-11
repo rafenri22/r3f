@@ -319,29 +319,29 @@ export default function TestingLiveryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Testing Livery</h1>
-          <p className="text-slate-600">Preview dan unduh desain livery armada TJA dengan UV mapping yang akurat</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Testing Livery</h1>
+          <p className="text-sm sm:text-base text-slate-600">Preview dan unduh desain livery armada TJA</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Controls */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Model Selection Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                  <Monitor className="w-5 h-5 text-slate-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900">Pilih Model</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Pilih Model</h3>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Model 3D</label>
                 <select 
-                  className="w-full p-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all" 
+                  className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all text-sm sm:text-base" 
                   value={selectedModelId} 
                   onChange={e => setSelectedModelId(e.target.value)}
                 >
@@ -354,12 +354,12 @@ export default function TestingLiveryPage() {
             </div>
 
             {/* Texture Upload Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                  <ImageIcon className="w-5 h-5 text-slate-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900">Upload Texture</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Upload Texture</h3>
               </div>
               
               <div className="space-y-4">
@@ -375,10 +375,10 @@ export default function TestingLiveryPage() {
                     />
                     <label 
                       htmlFor="body-upload"
-                      className="w-full p-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-all flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-700"
+                      className="w-full p-2.5 sm:p-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-all flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-700 text-sm"
                     >
-                      <Upload className="w-5 h-5" />
-                      <span>{bodyFile ? bodyFile.name : 'Pilih file body texture'}</span>
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="truncate">{bodyFile ? bodyFile.name : 'Pilih file body texture'}</span>
                     </label>
                   </div>
                   
@@ -391,8 +391,8 @@ export default function TestingLiveryPage() {
                   
                   {bodyFile && !bodyLoading && (
                     <p className="text-xs text-emerald-600 mt-1 flex items-center">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
-                      Body texture dimuat dengan UV mapping asli
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 flex-shrink-0"></span>
+                      <span className="truncate">Body texture dimuat</span>
                     </p>
                   )}
                 </div>
@@ -409,10 +409,10 @@ export default function TestingLiveryPage() {
                     />
                     <label 
                       htmlFor="alpha-upload"
-                      className="w-full p-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-all flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-700"
+                      className="w-full p-2.5 sm:p-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-all flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-700 text-sm"
                     >
-                      <Upload className="w-5 h-5" />
-                      <span>{alphaFile ? alphaFile.name : 'Pilih file alpha texture'}</span>
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="truncate">{alphaFile ? alphaFile.name : 'Pilih file alpha texture'}</span>
                     </label>
                   </div>
                   
@@ -425,8 +425,8 @@ export default function TestingLiveryPage() {
                   
                   {alphaFile && !alphaLoading && (
                     <p className="text-xs text-emerald-600 mt-1 flex items-center">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
-                      Alpha texture dimuat dengan UV mapping asli
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 flex-shrink-0"></span>
+                      <span className="truncate">Alpha texture dimuat</span>
                     </p>
                   )}
                 </div>
@@ -434,12 +434,12 @@ export default function TestingLiveryPage() {
             </div>
 
             {/* Camera Controls Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                  <Camera className="w-5 h-5 text-slate-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900">Pengaturan Kamera</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Pengaturan Kamera</h3>
               </div>
               
               <div className="space-y-4">
@@ -481,14 +481,14 @@ export default function TestingLiveryPage() {
 
           {/* Right Column - Preview */}
           <div>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
-                <h3 className="text-lg font-semibold text-slate-900">Preview 3D (UV Mapping Akurat)</h3>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 space-y-2 sm:space-y-0">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Preview 3D</h3>
                 {isPreviewReady && !modelLoading && !isTextureLoading && (
                   <button 
                     onClick={downloadPreview}
                     disabled={downloading}
-                    className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-500 hover:to-slate-400 text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg flex items-center space-x-2"
+                    className="w-full sm:w-auto bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-500 hover:to-slate-400 text-white font-semibold px-4 sm:px-6 py-2.5 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
                   >
                     {downloading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -540,7 +540,7 @@ export default function TestingLiveryPage() {
                   ) : (
                     <div className="h-full flex items-center justify-center text-slate-400">
                       {modelError ? (
-                        <div className="text-center">
+                        <div className="text-center p-4">
                           <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                             <span className="text-red-600 text-xl">⚠</span>
                           </div>
@@ -548,18 +548,18 @@ export default function TestingLiveryPage() {
                           <div className="text-xs text-red-500 mt-1">{modelError}</div>
                         </div>
                       ) : selectedModel ? (
-                        <div className="text-center">
+                        <div className="text-center p-4">
                           <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                             <ImageIcon className="w-6 h-6 text-slate-400" />
                           </div>
-                          <div>Upload texture untuk melihat preview</div>
+                          <div className="text-sm sm:text-base">Upload texture untuk melihat preview</div>
                         </div>
                       ) : (
-                        <div className="text-center">
+                        <div className="text-center p-4">
                           <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                             <Monitor className="w-6 h-6 text-slate-400" />
                           </div>
-                          <div>Pilih model dan upload texture</div>
+                          <div className="text-sm sm:text-base">Pilih model dan upload texture</div>
                         </div>
                       )}
                     </div>
@@ -568,25 +568,25 @@ export default function TestingLiveryPage() {
               </LoadingOverlay>
 
               {/* Preview Controls Info */}
-              <div className="mt-4 p-4 bg-slate-50 rounded-xl">
+              <div className="mt-4 p-3 sm:p-4 bg-slate-50 rounded-xl">
                 <h4 className="font-medium text-sm text-slate-700 mb-2">Kontrol Preview:</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
                   <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full flex-shrink-0"></div>
                     <span>Drag/Geser: Rotasi kamera</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full flex-shrink-0"></div>
                     <span>Scroll/Zoom: Zoom in/out</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-slate-400 rounded-full flex-shrink-0"></div>
                     <span>Drag kanan: Pan</span>
                   </div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">
-                    💡 UV mapping dipertahankan sesuai aslinya - Download akan menghasilkan gambar 1920x1080 HD
+                    💡 Download untuk mendapatkan gambar 1920x1080 HD
                   </p>
                 </div>
               </div>

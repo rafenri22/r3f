@@ -48,10 +48,10 @@ export default function ModelsPage() {
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-medium mb-6">Kelola Model 3D</h2>
+    <div className="max-w-7xl mx-auto">
+      <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">Kelola Model 3D</h2>
       
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <ModelUploader onUploaded={load} />
         </div>
@@ -66,11 +66,11 @@ export default function ModelsPage() {
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {models.map(m => (
-                <div key={m.id} className="p-4 border rounded bg-white">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="font-medium text-lg">{m.name}</div>
-                      <div className="text-sm text-gray-500 break-all">
+                <div key={m.id} className="p-3 sm:p-4 border rounded bg-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-base sm:text-lg">{m.name}</div>
+                      <div className="text-xs sm:text-sm text-gray-500 break-all">
                         {m.glb_url}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
@@ -78,9 +78,9 @@ export default function ModelsPage() {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 flex-shrink-0">
                       <a 
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200" 
+                        className="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 whitespace-nowrap" 
                         href={m.glb_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
@@ -88,7 +88,7 @@ export default function ModelsPage() {
                         Preview
                       </a>
                       <button 
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50"
+                        className="px-3 py-1 text-xs sm:text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50 whitespace-nowrap"
                         onClick={() => deleteModel(m.id)}
                         disabled={deleting === m.id}
                       >
