@@ -43,8 +43,8 @@ function BusModel({ glbUrl, bodyUrl, alphaUrl, zoom, fov }) {
   // Apply manual camera settings
   useEffect(() => {
     if (camera) {
-      // Set FOV
-      camera.fov = Math.max(5, Math.min(120, fov))
+      // Set FOV (minimum 1 degree)
+      camera.fov = Math.max(1, Math.min(120, fov))
       
       // Apply zoom by adjusting camera distance
       const baseDistance = 8
@@ -63,26 +63,35 @@ function BusModel({ glbUrl, bodyUrl, alphaUrl, zoom, fov }) {
 function CaptureHelper({ onReady }) {
   const { gl, scene, camera } = useThree()
   
-  const captureScreenshot = useCallback((width = 1920, height = 1080) => {
+  const captureScreenshot = useCallback(async (width = 1920, height = 1080) => {
     // Store original settings
     const originalSize = gl.getSize(new THREE.Vector2())
     const originalPixelRatio = gl.getPixelRatio()
+    const originalAspect = camera.aspect
     
     // Set high quality render settings
     gl.setPixelRatio(1)
     gl.setSize(width, height, false)
     
     // Update camera aspect ratio
-    const originalAspect = camera.aspect
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     
-    // Clear and render
+    // Clear and render with proper timing
     gl.clear()
     gl.render(scene, camera)
     
-    // Get the rendered canvas
-    const canvas = gl.domElement
+    // Wait a frame to ensure render is complete
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    
+    // Create a new canvas to capture the rendered content
+    const captureCanvas = document.createElement('canvas')
+    captureCanvas.width = width
+    captureCanvas.height = height
+    const captureCtx = captureCanvas.getContext('2d')
+    
+    // Draw the WebGL canvas to our capture canvas
+    captureCtx.drawImage(gl.domElement, 0, 0, width, height)
     
     // Restore original settings
     gl.setPixelRatio(originalPixelRatio)
@@ -90,7 +99,7 @@ function CaptureHelper({ onReady }) {
     camera.aspect = originalAspect
     camera.updateProjectionMatrix()
     
-    return canvas
+    return captureCanvas
   }, [gl, scene, camera])
 
   useEffect(() => {
@@ -168,8 +177,8 @@ export default function TestingLiveryPage() {
     try {
       setDownloading(true)
       
-      // Capture the canvas
-      const canvas = captureRef.current(1920, 1080)
+      // Capture the canvas with high resolution
+      const canvas = await captureRef.current(1920, 1080)
       
       // Add watermark
       const watermarkedDataUrl = await addWatermark(canvas, 1920, 1080)
@@ -338,7 +347,7 @@ export default function TestingLiveryPage() {
                   <div className="flex items-center gap-2">
                     <input
                       type="range"
-                      min="15"
+                      min="1"
                       max="90"
                       step="1"
                       value={fov}
@@ -347,6 +356,7 @@ export default function TestingLiveryPage() {
                     />
                     <span className="text-sm font-mono w-12 text-slate-600">{fov}°</span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-1">FOV rendah = zoom tele, FOV tinggi = wide angle</p>
                 </div>
               </div>
             </div>
@@ -383,6 +393,12 @@ export default function TestingLiveryPage() {
                     <Canvas 
                       camera={{ position: [5, 2, 5], fov: Math.max(1, Math.min(90, fov)) }}
                       style={{ width: '100%', height: '100%' }}
+                      gl={{ 
+                        preserveDrawingBuffer: true,
+                        antialias: true,
+                        alpha: true,
+                        powerPreference: "high-performance"
+                      }}
                     >
                       {/* Enhanced lighting for better visibility */}
                       <ambientLight intensity={0.4} />

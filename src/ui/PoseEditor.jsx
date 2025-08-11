@@ -19,7 +19,7 @@ function CameraController({ onGet, zoom, fov, onControlsReady }) {
 
   useEffect(() => {
     if (camera && fov) {
-      camera.fov = Math.max(5, fov) // Minimum 5 derajat
+      camera.fov = Math.max(1, fov) // Minimum 1 degree instead of 5
       camera.updateProjectionMatrix()
     }
   }, [camera, fov])
@@ -120,7 +120,7 @@ export default function PoseEditor({ models }) {
         camera_pos, 
         target_pos: target,
         camera_zoom: zoom,
-        camera_fov: Math.max(5, fov)
+        camera_fov: Math.max(1, fov) // Minimum FOV is now 1
       })
       
       if (error) throw error
@@ -219,7 +219,7 @@ export default function PoseEditor({ models }) {
             <div className="flex items-center gap-2">
               <input
                 type="range"
-                min="5"
+                min="1"
                 max="120"
                 step="1"
                 value={fov}
@@ -228,6 +228,7 @@ export default function PoseEditor({ models }) {
               />
               <span className="text-xs font-mono w-8">{fov}°</span>
             </div>
+            <p className="text-xs text-gray-500 mt-1">1° = tele, 120° = wide</p>
           </div>
         </div>
       </div>
@@ -240,8 +241,13 @@ export default function PoseEditor({ models }) {
         <div style={{ width: '100%', aspectRatio: '16/9', height: 'auto' }} className="mb-3 border rounded">
           {modelUrl ? (
             <Canvas 
-              camera={{ position: [5, 2, 5], fov: Math.max(5, fov) }}
+              camera={{ position: [5, 2, 5], fov: Math.max(1, fov) }}
               style={{ width: '100%', height: '100%' }}
+              gl={{ 
+                preserveDrawingBuffer: true,
+                antialias: true,
+                alpha: true
+              }}
             >
               <ambientLight intensity={0.6} />
               <directionalLight position={[5, 10, 5]} intensity={1} />
