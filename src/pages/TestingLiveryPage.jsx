@@ -78,6 +78,7 @@ function CaptureHelper({ onReady }) {
     camera.updateProjectionMatrix()
     
     // Clear and render with proper timing
+    gl.setClearColor(0x0f172a, 1); // Warna slate-900
     gl.clear()
     gl.render(scene, camera)
     
@@ -222,7 +223,7 @@ export default function TestingLiveryPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Testing Livery</h1>
-          <p className="text-slate-600">Preview dan unduh desain livery dengan kualitas HD</p>
+          <p className="text-slate-600">Preview dan unduh desain livery armada TJA</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -378,7 +379,7 @@ export default function TestingLiveryPage() {
                     ) : (
                       <Download className="w-4 h-4" />
                     )}
-                    <span>{downloading ? 'Memproses...' : 'Download HD'}</span>
+                    <span>{downloading ? 'Memproses...' : 'Download'}</span>
                   </button>
                 )}
               </div>
@@ -456,11 +457,11 @@ export default function TestingLiveryPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
-                    <span>Drag: Rotasi kamera</span>
+                    <span>Drag/Geser: Rotasi kamera</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
-                    <span>Scroll: Zoom in/out</span>
+                    <span>Scroll/Zoom: Zoom in/out</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
@@ -469,29 +470,10 @@ export default function TestingLiveryPage() {
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">
-                    💡 Download menghasilkan gambar 1920x1080 HD dengan watermark perusahaan
+                    💡 Download akan menghasilkan gambar 1920x1080 HD
                   </p>
                 </div>
               </div>
-
-              {/* Status Card */}
-              {isPreviewReady && (
-                <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <Camera className="w-4 h-4 text-emerald-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-emerald-900">Preview Siap!</h4>
-                      <p className="text-sm text-emerald-700">
-                        Model: <strong>{selectedModel.name}</strong>
-                        <span> • Zoom: <strong>{zoom.toFixed(1)}x</strong></span>
-                        <span> • FOV: <strong>{fov}°</strong></span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

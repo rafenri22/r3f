@@ -30,13 +30,13 @@ export async function addWatermark(canvas, width = 1920, height = 1080) {
   // Company name (larger)
   const companyFontSize = Math.floor(width * 0.020) // Slightly bigger font
   ctx.font = `bold ${companyFontSize}px Inter, Arial, sans-serif`
-  ctx.fillText('PT. Trijaya Agung Lestari', width / 2, height - 50)
+  ctx.fillText(``, width / 2, height - 50)
   
   // Developer credit (smaller with more spacing)
   const devFontSize = Math.floor(width * 0.014)
   ctx.font = `${devFontSize}px Inter, Arial, sans-serif`
   ctx.fillStyle = '#e2e8f0'
-  ctx.fillText('Developed by Rafky Ferdian Algiffari • Portal TJA', width / 2, height - 20)
+  ctx.fillText('PT. Trijaya Agung Lestari', width / 2, height - 20)
   
   // Reset shadow
   ctx.shadowColor = 'transparent'

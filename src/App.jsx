@@ -26,10 +26,15 @@ function AppContent() {
       <header className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo and Brand */}
+            {/* Logo dan Brand - DIUBAH MENJADI GAMBAR */}
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl flex items-center justify-center">
-                <span className="text-lg font-bold text-white">TJA</span>
+              <div className="flex items-center justify-center">
+                {/* Ganti div dengan img */}
+                <img 
+                  src="tja.png" 
+                  alt="Logo TJA" 
+                  className="w-10 h-10 object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Portal TJA</h1>
