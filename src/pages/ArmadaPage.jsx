@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { uploadFile, deleteFile, parseStorageUrl } from '../lib/storage'
 import ArmadaForm from '../ui/ArmadaForm'
+import SecureImage from '../ui/SecureImage'
 
 export default function ArmadaPage() {
   const [models, setModels] = useState([])
@@ -36,8 +38,31 @@ export default function ArmadaPage() {
     if (!confirm('Hapus armada ini?')) return
     
     try {
+      // Get armada data to clean up storage files
+      const armada = armadas.find(a => a.id === id)
+      if (!armada) return
+
+      // Delete from database first
       const { error } = await supabase.from('armada').delete().eq('id', id)
       if (error) throw error
+
+      // Clean up storage files
+      const filesToDelete = [
+        armada.livery_body_url,
+        armada.livery_alpha_url,
+        armada.thumbnail_url
+      ].filter(Boolean)
+
+      for (const fileUrl of filesToDelete) {
+        try {
+          const parsed = parseStorageUrl(fileUrl)
+          if (parsed) {
+            await deleteFile(parsed.bucket, parsed.path)
+          }
+        } catch (deleteError) {
+          console.warn('Failed to delete storage file:', fileUrl, deleteError)
+        }
+      }
       
       alert('Armada berhasil dihapus!')
       loadData()
@@ -60,22 +85,16 @@ export default function ArmadaPage() {
         const armada = armadas.find(a => a.id === armadaId)
         if (!armada) return
         
-        // Upload new thumbnail
+        // Upload new thumbnail using secure storage
         const ts = Date.now()
         const thumbnailKey = `thumbnails/${armada.kode_bus}_${ts}_updated_${file.name}`
         
-        const { error: uploadError } = await supabase.storage
-          .from('thumbnails')
-          .upload(thumbnailKey, file)
+        const uploadResult = await uploadFile('thumbnails', thumbnailKey, file)
         
-        if (uploadError) throw uploadError
-        
-        const thumbnailUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/thumbnails/${encodeURIComponent(thumbnailKey)}`
-        
-        // Update armada record
+        // Update armada record with path only
         const { error: updateError } = await supabase
           .from('armada')
-          .update({ thumbnail_url: thumbnailUrl })
+          .update({ thumbnail_url: uploadResult.path })
           .eq('id', armadaId)
         
         if (updateError) throw updateError
@@ -94,7 +113,10 @@ export default function ArmadaPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">Kelola Armada</h2>
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-medium">Kelola Armada</h2>
+        <p className="text-sm text-gray-600 mt-1">🔒 Semua file disimpan dengan aman dan hanya bisa diakses melalui aplikasi</p>
+      </div>
       
       {loading ? (
         <div className="text-center py-8 text-gray-500">
@@ -116,13 +138,16 @@ export default function ArmadaPage() {
                 {armadas.map(armada => (
                   <div key={armada.id} className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
                     {armada.thumbnail_url ? (
-                      <img 
-                        src={armada.thumbnail_url} 
+                      <SecureImage 
+                        src={armada.thumbnail_url}
+                        bucket="thumbnails"
                         alt={armada.kode_bus}
                         className="w-full h-28 sm:h-32 object-cover rounded-t-lg"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                        }}
+                        fallback={
+                          <div className="w-full h-28 sm:h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                            <span className="text-gray-500 text-sm">🔒 Secure Thumbnail</span>
+                          </div>
+                        }
                       />
                     ) : (
                       <div className="w-full h-28 sm:h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
@@ -169,36 +194,12 @@ export default function ArmadaPage() {
                       </div>
                       
                       <div className="mt-3 flex flex-wrap gap-1">
-                        {armada.livery_body_url && (
-                          <a 
-                            href={armada.livery_body_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                          >
-                            Body
-                          </a>
-                        )}
-                        {armada.livery_alpha_url && (
-                          <a 
-                            href={armada.livery_alpha_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                          >
-                            Alpha
-                          </a>
-                        )}
-                        {armada.thumbnail_url && (
-                          <a 
-                            href={armada.thumbnail_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                          >
-                            Thumbnail
-                          </a>
-                        )}
+                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                          🔒 Secure Storage
+                        </span>
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                          Private Access
+                        </span>
                       </div>
                     </div>
                   </div>

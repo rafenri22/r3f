@@ -581,7 +581,7 @@ export default function TestingLiveryPage() {
                   </div>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-slate-400 rounded-full flex-shrink-0"></div>
-                    <span>Drag kanan: Pan</span>
+                    <span>Drag kanan/Double tap: Geser Kamera</span>
                   </div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-200">

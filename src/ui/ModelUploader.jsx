@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { uploadFile } from '../lib/storage'
 import { useUploadProgress } from '../hooks/useUploadProgress'
 import LoadingProgress from '../components/LoadingProgress'
 
@@ -67,38 +68,19 @@ export default function ModelUploader({ onUploaded }) {
       
       const key = `models/${Date.now()}_${file.name}`
       
-      // Upload with simulated progress tracking
-      const uploadPromise = supabase.storage
-        .from('models')
-        .upload(key, file, { 
-          cacheControl: '3600', 
-          upsert: false
-        })
-      
-      // Simulate upload progress
-      let uploadProgress = 20
-      const progressInterval = setInterval(() => {
-        if (uploadProgress < 70) {
-          uploadProgress += Math.random() * 10
-          updateProgress(uploadProgress, 'Uploading 3D model...')
-        }
-      }, 500)
-      
-      const { error: upErr } = await uploadPromise
-      clearInterval(progressInterval)
-      
-      if (upErr) throw upErr
+      // Upload using secure storage function
+      updateProgress(30, 'Uploading 3D model...')
+      const uploadResult = await uploadFile('models', key, file)
       
       updateProgress(80, 'Processing 3D model...')
       await new Promise(resolve => setTimeout(resolve, 800))
       
-      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/models/${encodeURIComponent(key)}`
-      
+      // Store only the file path, not the full URL
       updateProgress(90, 'Saving model to database...')
       
       const { error: insertErr } = await supabase.from('models').insert({ 
         name, 
-        glb_url: publicUrl 
+        glb_url: uploadResult.path // Store path only, not full URL
       })
       
       if (insertErr) throw insertErr
@@ -114,7 +96,7 @@ export default function ModelUploader({ onUploaded }) {
       if (fileInput) fileInput.value = ''
       
       onUploaded && onUploaded()
-      alert('Model 3D berhasil diupload!')
+      alert('Model 3D berhasil diupload! File sekarang aman dan hanya bisa diakses melalui aplikasi.')
       
     } catch (e) {
       console.error(e)
@@ -125,7 +107,7 @@ export default function ModelUploader({ onUploaded }) {
 
   return (
     <div className="p-4 border rounded bg-white">
-      <h3 className="font-semibold mb-3">Upload Model 3D</h3>
+      <h3 className="font-semibold mb-3">Upload Model 3D (Secure)</h3>
       
       {isUploading && (
         <div className="mb-4">
@@ -159,7 +141,7 @@ export default function ModelUploader({ onUploaded }) {
             disabled={isUploading || fileLoading}
           />
           <p className="text-xs text-gray-500 mt-1">
-            Pastikan model memiliki material bernama 'bodybasic' dan 'alpha' dengan UV mapping yang benar
+            File akan disimpan dengan aman dan hanya bisa diakses melalui aplikasi
           </p>
           
           {file && !fileLoading && (
@@ -175,7 +157,7 @@ export default function ModelUploader({ onUploaded }) {
           onClick={upload} 
           disabled={isUploading || fileLoading}
         >
-          {isUploading ? 'Uploading 3D Model...' : fileLoading ? 'Processing File...' : 'Upload Model'}
+          {isUploading ? 'Uploading 3D Model...' : fileLoading ? 'Processing File...' : 'Upload Model (Secure)'}
         </button>
         
         {isUploading && (
@@ -189,7 +171,7 @@ export default function ModelUploader({ onUploaded }) {
         
         {file && !fileLoading && !isUploading && (
           <div className="p-2 bg-green-50 rounded text-xs text-green-700">
-            <strong>File siap untuk upload:</strong> UV mapping akan dipertahankan sesuai aslinya untuk memastikan texture livery sesuai dengan desain.
+            <strong>🔒 Secure Upload:</strong> File akan diupload ke storage privat dan hanya bisa diakses melalui signed URLs dengan autentikasi yang valid.
           </div>
         )}
       </div>
