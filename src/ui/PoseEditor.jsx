@@ -10,7 +10,7 @@ function ModelPreview({ url }) {
   return <primitive object={scene} />
 }
 
-function CameraController({ onGet, zoom, fov }) {
+function CameraController({ onGet, zoom, fov, onControlsReady }) {
   const { camera, controls } = useThree()
   
   useEffect(() => { 
@@ -19,19 +19,35 @@ function CameraController({ onGet, zoom, fov }) {
 
   useEffect(() => {
     if (camera && fov) {
-      camera.fov = fov
+      camera.fov = Math.max(5, fov) // Minimum 5 derajat
       camera.updateProjectionMatrix()
     }
   }, [camera, fov])
 
   useEffect(() => {
-    if (controls && zoom) {
-      controls.setDistance = (distance) => {
-        const scaledDistance = distance / zoom
-        controls.dollyTo(scaledDistance, true)
-      }
+    if (controls && onControlsReady) {
+      onControlsReady(controls)
     }
-  }, [controls, zoom])
+  }, [controls, onControlsReady])
+
+  // Apply zoom by adjusting camera distance
+  useEffect(() => {
+    if (controls && zoom && camera) {
+      const baseDistance = 8 // Base distance
+      const targetDistance = baseDistance / zoom
+      
+      // Calculate current distance to maintain direction
+      const currentDistance = camera.position.length()
+      const direction = camera.position.clone().normalize()
+      
+      // Set new position
+      const newPosition = direction.multiplyScalar(targetDistance)
+      camera.position.copy(newPosition)
+      
+      // Update controls
+      controls.update()
+    }
+  }, [controls, zoom, camera])
   
   return null
 }
@@ -46,6 +62,7 @@ export default function PoseEditor({ models }) {
   const [loading, setLoading] = useState(false)
   const [loadingPoses, setLoadingPoses] = useState(false)
   const cameraRef = useRef(null)
+  const controlsRef = useRef(null)
 
   // Use 3D model loader with progress
   const { 
@@ -74,6 +91,10 @@ export default function PoseEditor({ models }) {
     }
   }
 
+  function handleControlsReady(controls) {
+    controlsRef.current = controls
+  }
+
   async function savePose() {
     if (!modelId || !name) {
       return alert('Pilih model dan isi nama pose')
@@ -99,7 +120,7 @@ export default function PoseEditor({ models }) {
         camera_pos, 
         target_pos: target,
         camera_zoom: zoom,
-        camera_fov: fov
+        camera_fov: Math.max(5, fov)
       })
       
       if (error) throw error
@@ -149,6 +170,10 @@ export default function PoseEditor({ models }) {
         pose.target_pos?.z || 0
       )
       cameraRef.current.updateProjectionMatrix()
+      
+      if (controlsRef.current) {
+        controlsRef.current.update()
+      }
     }
   }
 
@@ -180,7 +205,7 @@ export default function PoseEditor({ models }) {
               <input
                 type="range"
                 min="0.1"
-                max="3.0"
+                max="5.0"
                 step="0.1"
                 value={zoom}
                 onChange={e => setZoom(parseFloat(e.target.value))}
@@ -194,7 +219,7 @@ export default function PoseEditor({ models }) {
             <div className="flex items-center gap-2">
               <input
                 type="range"
-                min="20"
+                min="5"
                 max="120"
                 step="1"
                 value={fov}
@@ -212,9 +237,12 @@ export default function PoseEditor({ models }) {
         progress={loadingProgress}
         message={loadingMessage || (loadingPoses ? 'Loading poses...' : '')}
       >
-        <div style={{ height: 360 }} className="mb-3 border rounded">
+        <div style={{ width: '100%', aspectRatio: '16/9', height: 'auto' }} className="mb-3 border rounded">
           {modelUrl ? (
-            <Canvas camera={{ position: [5, 2, 5], fov: fov }}>
+            <Canvas 
+              camera={{ position: [5, 2, 5], fov: Math.max(5, fov) }}
+              style={{ width: '100%', height: '100%' }}
+            >
               <ambientLight intensity={0.6} />
               <directionalLight position={[5, 10, 5]} intensity={1} />
               <ModelPreview url={modelUrl} />
@@ -223,6 +251,7 @@ export default function PoseEditor({ models }) {
                 onGet={(cam) => { cameraRef.current = cam }} 
                 zoom={zoom}
                 fov={fov}
+                onControlsReady={handleControlsReady}
               />
             </Canvas>
           ) : (

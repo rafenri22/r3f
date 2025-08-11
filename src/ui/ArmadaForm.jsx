@@ -48,7 +48,7 @@ function BusPreview({ glbUrl, bodyUrl, alphaUrl, pose, poseData }) {
       
       // Apply zoom and FOV if available
       if (poseData.camera_fov) {
-        camera.fov = poseData.camera_fov
+        camera.fov = Math.max(5, poseData.camera_fov)
       }
       
       camera.updateProjectionMatrix()
@@ -64,10 +64,24 @@ function CameraCapture({ onCapture }) {
   useEffect(() => {
     if (onCapture) {
       onCapture(() => {
+        // Set render size to HD for thumbnail
+        const originalSize = gl.getSize(new THREE.Vector2())
+        gl.setSize(1920, 1080, false)
+        
+        // Update camera aspect ratio
+        camera.aspect = 1920 / 1080
+        camera.updateProjectionMatrix()
+        
         // Render the scene to capture screenshot
         gl.render(scene, camera)
-        const canvas = gl.domElement
-        return canvas.toDataURL('image/png')
+        const dataUrl = gl.domElement.toDataURL('image/png')
+        
+        // Restore original size
+        gl.setSize(originalSize.x, originalSize.y, false)
+        camera.aspect = originalSize.x / originalSize.y
+        camera.updateProjectionMatrix()
+        
+        return dataUrl
       })
     }
   }, [gl, scene, camera, onCapture])
@@ -448,14 +462,14 @@ export default function ArmadaForm({ models, onSuccess }) {
 
       <div>
         <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold">Preview 3D</h3>
+          <h3 className="font-semibold">Preview 3D (16:9)</h3>
           {isPreviewReady && !modelLoading && (
             <button 
               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
               onClick={takeScreenshot}
               disabled={isUploading}
             >
-              📸 Screenshot
+              📸 Screenshot HD
             </button>
           )}
         </div>
@@ -465,12 +479,15 @@ export default function ArmadaForm({ models, onSuccess }) {
           progress={modelLoading ? modelLoadingProgress : 0}
           message={modelLoading ? modelLoadingMessage : (loadingPoses ? 'Loading poses...' : '')}
         >
-          <div className="border rounded" style={{ height: 420 }}>
+          <div className="border rounded" style={{ width: '100%', aspectRatio: '16/9' }}>
             {previewModelUrl ? (
-              <Canvas camera={{ 
-                position: [5, 2, 5], 
-                fov: selectedPose?.camera_fov || 45 
-              }}>
+              <Canvas 
+                camera={{ 
+                  position: [5, 2, 5], 
+                  fov: selectedPose ? Math.max(5, selectedPose.camera_fov || 45) : 45
+                }}
+                style={{ width: '100%', height: '100%' }}
+              >
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[5, 10, 5]} intensity={1} />
                 <directionalLight position={[-3, 3, -3]} intensity={0.4} />
@@ -516,12 +533,12 @@ export default function ArmadaForm({ models, onSuccess }) {
         </div>
 
         <div className="mt-4 p-3 bg-gray-50 rounded">
-          <h4 className="font-medium text-sm mb-2">Cara Screenshot:</h4>
+          <h4 className="font-medium text-sm mb-2">Cara Screenshot HD:</h4>
           <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1">
             <li>Pastikan model dan texture sudah dimuat</li>
             <li>Pilih pose yang sesuai (akan mengatur zoom dan FOV otomatis)</li>
             <li>Atur posisi kamera dengan mouse (drag untuk rotate, scroll untuk zoom)</li>
-            <li>Klik tombol "📸 Screenshot" untuk ambil gambar</li>
+            <li>Klik tombol "📸 Screenshot HD" untuk ambil gambar 1920x1080</li>
             <li>Screenshot akan otomatis dijadikan thumbnail saat simpan armada</li>
           </ol>
         </div>

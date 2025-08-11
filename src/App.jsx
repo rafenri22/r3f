@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import ModelsPage from './pages/ModelsPage'
 import PosesPage from './pages/PosesPage'
 import ArmadaPage from './pages/ArmadaPage'
+import TestingLiveryPage from './pages/TestingLiveryPage'
 
 export default function App() {
   const location = useLocation()
@@ -51,6 +52,16 @@ export default function App() {
               >
                 Armada
               </Link>
+              <Link 
+                to="/testing" 
+                className={`text-sm font-medium transition-colors ${
+                  isActive('/testing') 
+                    ? 'text-blue-600 border-b-2 border-blue-600' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Testing Livery
+              </Link>
             </nav>
           </div>
         </div>
@@ -62,6 +73,7 @@ export default function App() {
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/poses" element={<PosesPage />} />
           <Route path="/armada" element={<ArmadaPage />} />
+          <Route path="/testing" element={<TestingLiveryPage />} />
         </Routes>
       </main>
     </div>
