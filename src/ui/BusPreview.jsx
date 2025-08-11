@@ -10,25 +10,60 @@ export default function BusPreview({ glbUrl, bodyUrl, alphaUrl, pose, poseData }
   useEffect(() => {
     if (!scene) return
     
-    // Apply textures if provided
+    // Apply textures if provided with proper UV mapping
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
-        // Apply body texture
+        // Apply body texture with preserved UV mapping
         if (bodyUrl && (child.material.name === 'bodybasic' || child.material.name?.toLowerCase().includes('body'))) {
           const loader = new THREE.TextureLoader()
           loader.load(bodyUrl, (texture) => {
+            // Preserve original UV mapping settings
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Critical: preserve original orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Don't modify UV coordinates - use original mapping
+            // texture.repeat.set(1, 1)
+            // texture.offset.set(0, 0)
+            
+            // Clean up old texture if exists
+            if (child.material.map) {
+              child.material.map.dispose()
+            }
+            
             child.material.map = texture
             child.material.needsUpdate = true
+            
+            console.log('Body texture applied with preserved UV mapping:', child.material.name)
           })
         }
         
-        // Apply alpha texture
+        // Apply alpha texture with preserved UV mapping
         if (alphaUrl && (child.material.name === 'alpha' || child.material.name?.toLowerCase().includes('alpha') || child.material.name?.toLowerCase().includes('glass'))) {
           const loader = new THREE.TextureLoader()
           loader.load(alphaUrl, (texture) => {
+            // Preserve original UV mapping settings
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Critical: preserve original orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Clean up old texture if exists
+            if (child.material.map) {
+              child.material.map.dispose()
+            }
+            
             child.material.map = texture
             child.material.transparent = true
+            child.material.alphaTest = 0.1 // Better alpha handling
             child.material.needsUpdate = true
+            
+            console.log('Alpha texture applied with preserved UV mapping:', child.material.name)
           })
         }
       }

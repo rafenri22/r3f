@@ -6,34 +6,68 @@ import { supabase } from '../lib/supabase'
 import { useModel3DLoader } from '../hooks/useModel3DLoader'
 import { addWatermark } from '../utils/watermark'
 import LoadingOverlay from '../components/LoadingOverlay'
+import LoadingProgress from '../components/LoadingProgress'
 import { Download, Upload, Image as ImageIcon, Camera, Settings, Monitor } from 'lucide-react'
 
 function BusModel({ glbUrl, bodyUrl, alphaUrl, zoom, fov }) {
   const { scene } = useGLTF(glbUrl)
   const { camera } = useThree()
   
-  // Apply textures
+  // Apply textures with proper UV mapping
   useEffect(() => {
     if (!scene) return
     
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
-        // Apply body texture
+        // Apply body texture with proper UV settings
         if (bodyUrl && (child.material.name === 'bodybasic' || child.material.name?.toLowerCase().includes('body'))) {
           const loader = new THREE.TextureLoader()
           loader.load(bodyUrl, (texture) => {
+            // Preserve original UV mapping
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Important: keep original orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Don't modify repeat or offset - use original UV coordinates
+            // texture.repeat.set(1, 1)
+            // texture.offset.set(0, 0)
+            
+            // Apply texture to material
+            if (child.material.map) {
+              child.material.map.dispose() // Clean up old texture
+            }
             child.material.map = texture
             child.material.needsUpdate = true
+            
+            console.log('Body texture applied to:', child.material.name, 'UV coords preserved')
           })
         }
         
-        // Apply alpha texture
+        // Apply alpha texture with proper UV settings
         if (alphaUrl && (child.material.name === 'alpha' || child.material.name?.toLowerCase().includes('alpha') || child.material.name?.toLowerCase().includes('glass'))) {
           const loader = new THREE.TextureLoader()
           loader.load(alphaUrl, (texture) => {
+            // Preserve original UV mapping for alpha
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Keep original orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Apply texture to material
+            if (child.material.map) {
+              child.material.map.dispose() // Clean up old texture
+            }
             child.material.map = texture
             child.material.transparent = true
+            child.material.alphaTest = 0.1 // Better alpha handling
             child.material.needsUpdate = true
+            
+            console.log('Alpha texture applied to:', child.material.name, 'UV coords preserved')
           })
         }
       }
@@ -121,6 +155,13 @@ export default function TestingLiveryPage() {
   const [fov, setFov] = useState(45)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  
+  // Progress states for texture loading
+  const [bodyLoading, setBodyLoading] = useState(false)
+  const [alphaLoading, setAlphaLoading] = useState(false)
+  const [bodyProgress, setBodyProgress] = useState(0)
+  const [alphaProgress, setAlphaProgress] = useState(0)
+  
   const captureRef = useRef(null)
 
   const selectedModel = models.find(m => m.id === selectedModelId)
@@ -152,20 +193,78 @@ export default function TestingLiveryPage() {
   function handleBodyFile(file) {
     setBodyFile(file)
     if (file) {
-      const url = URL.createObjectURL(file)
-      setBodyUrl(url)
+      setBodyLoading(true)
+      setBodyProgress(0)
+      
+      // Simulate loading progress for file reading
+      const reader = new FileReader()
+      let progressInterval = setInterval(() => {
+        setBodyProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return prev
+          }
+          return prev + Math.random() * 20
+        })
+      }, 100)
+      
+      reader.onload = () => {
+        setBodyProgress(100)
+        const url = URL.createObjectURL(file)
+        setBodyUrl(url)
+        
+        setTimeout(() => {
+          setBodyLoading(false)
+          setBodyProgress(0)
+        }, 500)
+        
+        clearInterval(progressInterval)
+      }
+      
+      reader.readAsDataURL(file)
     } else {
       setBodyUrl(null)
+      setBodyLoading(false)
+      setBodyProgress(0)
     }
   }
 
   function handleAlphaFile(file) {
     setAlphaFile(file)
     if (file) {
-      const url = URL.createObjectURL(file)
-      setAlphaUrl(url)
+      setAlphaLoading(true)
+      setAlphaProgress(0)
+      
+      // Simulate loading progress for file reading
+      const reader = new FileReader()
+      let progressInterval = setInterval(() => {
+        setAlphaProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return prev
+          }
+          return prev + Math.random() * 20
+        })
+      }, 100)
+      
+      reader.onload = () => {
+        setAlphaProgress(100)
+        const url = URL.createObjectURL(file)
+        setAlphaUrl(url)
+        
+        setTimeout(() => {
+          setAlphaLoading(false)
+          setAlphaProgress(0)
+        }, 500)
+        
+        clearInterval(progressInterval)
+      }
+      
+      reader.readAsDataURL(file)
     } else {
       setAlphaUrl(null)
+      setAlphaLoading(false)
+      setAlphaProgress(0)
     }
   }
 
@@ -205,6 +304,7 @@ export default function TestingLiveryPage() {
   }
 
   const isPreviewReady = selectedModel && (bodyUrl || alphaUrl)
+  const isTextureLoading = bodyLoading || alphaLoading
 
   if (loading) {
     return (
@@ -223,7 +323,7 @@ export default function TestingLiveryPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Testing Livery</h1>
-          <p className="text-slate-600">Preview dan unduh desain livery armada TJA</p>
+          <p className="text-slate-600">Preview dan unduh desain livery armada TJA dengan UV mapping yang akurat</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -281,10 +381,18 @@ export default function TestingLiveryPage() {
                       <span>{bodyFile ? bodyFile.name : 'Pilih file body texture'}</span>
                     </label>
                   </div>
-                  {bodyFile && (
+                  
+                  {/* Body loading progress */}
+                  {bodyLoading && (
+                    <div className="mt-2">
+                      <LoadingProgress progress={bodyProgress} message="Loading body texture..." />
+                    </div>
+                  )}
+                  
+                  {bodyFile && !bodyLoading && (
                     <p className="text-xs text-emerald-600 mt-1 flex items-center">
                       <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
-                      Body texture dimuat
+                      Body texture dimuat dengan UV mapping asli
                     </p>
                   )}
                 </div>
@@ -307,10 +415,18 @@ export default function TestingLiveryPage() {
                       <span>{alphaFile ? alphaFile.name : 'Pilih file alpha texture'}</span>
                     </label>
                   </div>
-                  {alphaFile && (
+                  
+                  {/* Alpha loading progress */}
+                  {alphaLoading && (
+                    <div className="mt-2">
+                      <LoadingProgress progress={alphaProgress} message="Loading alpha texture..." />
+                    </div>
+                  )}
+                  
+                  {alphaFile && !alphaLoading && (
                     <p className="text-xs text-emerald-600 mt-1 flex items-center">
                       <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
-                      Alpha texture dimuat
+                      Alpha texture dimuat dengan UV mapping asli
                     </p>
                   )}
                 </div>
@@ -367,8 +483,8 @@ export default function TestingLiveryPage() {
           <div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
-                <h3 className="text-lg font-semibold text-slate-900">Preview 3D</h3>
-                {isPreviewReady && !modelLoading && (
+                <h3 className="text-lg font-semibold text-slate-900">Preview 3D (UV Mapping Akurat)</h3>
+                {isPreviewReady && !modelLoading && !isTextureLoading && (
                   <button 
                     onClick={downloadPreview}
                     disabled={downloading}
@@ -385,12 +501,12 @@ export default function TestingLiveryPage() {
               </div>
               
               <LoadingOverlay
-                isVisible={modelLoading}
-                progress={modelLoading ? loadingProgress : 0}
-                message={modelLoading ? loadingMessage : ''}
+                isVisible={modelLoading || isTextureLoading}
+                progress={modelLoading ? loadingProgress : (bodyLoading ? bodyProgress : alphaProgress)}
+                message={modelLoading ? loadingMessage : (bodyLoading ? 'Loading body texture...' : alphaLoading ? 'Loading alpha texture...' : '')}
               >
                 <div className="border border-slate-200 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden" style={{ width: '100%', aspectRatio: '16/9' }}>
-                  {selectedModel && isPreviewReady ? (
+                  {selectedModel && isPreviewReady && !isTextureLoading ? (
                     <Canvas 
                       camera={{ position: [5, 2, 5], fov: Math.max(1, Math.min(90, fov)) }}
                       style={{ width: '100%', height: '100%' }}
@@ -470,7 +586,7 @@ export default function TestingLiveryPage() {
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">
-                    💡 Download akan menghasilkan gambar 1920x1080 HD
+                    💡 UV mapping dipertahankan sesuai aslinya - Download akan menghasilkan gambar 1920x1080 HD
                   </p>
                 </div>
               </div>

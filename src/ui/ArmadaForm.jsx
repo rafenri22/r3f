@@ -15,25 +15,56 @@ function BusPreview({ glbUrl, bodyUrl, alphaUrl, pose, poseData }) {
   useEffect(() => {
     if (!scene) return
     
-    // Apply textures if provided
+    // Apply textures if provided with proper UV mapping preservation
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
-        // Apply body texture
+        // Apply body texture with preserved UV mapping
         if (bodyUrl && (child.material.name === 'bodybasic' || child.material.name?.toLowerCase().includes('body'))) {
           const loader = new THREE.TextureLoader()
           loader.load(bodyUrl, (texture) => {
+            // Preserve original UV mapping
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Critical: keep original texture orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Clean up existing texture
+            if (child.material.map) {
+              child.material.map.dispose()
+            }
+            
             child.material.map = texture
             child.material.needsUpdate = true
+            
+            console.log('Body texture applied with UV preservation to:', child.material.name)
           })
         }
         
-        // Apply alpha texture
+        // Apply alpha texture with preserved UV mapping
         if (alphaUrl && (child.material.name === 'alpha' || child.material.name?.toLowerCase().includes('alpha') || child.material.name?.toLowerCase().includes('glass'))) {
           const loader = new THREE.TextureLoader()
           loader.load(alphaUrl, (texture) => {
+            // Preserve original UV mapping
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            texture.flipY = false // Critical: keep original texture orientation
+            texture.generateMipmaps = true
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            
+            // Clean up existing texture
+            if (child.material.map) {
+              child.material.map.dispose()
+            }
+            
             child.material.map = texture
             child.material.transparent = true
+            child.material.alphaTest = 0.1
             child.material.needsUpdate = true
+            
+            console.log('Alpha texture applied with UV preservation to:', child.material.name)
           })
         }
       }
@@ -105,6 +136,13 @@ export default function ArmadaForm({ models, onSuccess }) {
   const [previewBodyUrl, setPreviewBodyUrl] = useState(null)
   const [previewAlphaUrl, setPreviewAlphaUrl] = useState(null)
   const [loadingPoses, setLoadingPoses] = useState(false)
+  
+  // Progress states for texture loading
+  const [bodyTextureLoading, setBodyTextureLoading] = useState(false)
+  const [alphaTextureLoading, setAlphaTextureLoading] = useState(false)
+  const [bodyTextureProgress, setBodyTextureProgress] = useState(0)
+  const [alphaTextureProgress, setAlphaTextureProgress] = useState(0)
+  
   const captureFunction = useRef(null)
 
   // Upload progress hook
@@ -153,8 +191,38 @@ export default function ArmadaForm({ models, onSuccess }) {
     }
   }
 
-  function fileToUrl(file) { 
-    return file ? URL.createObjectURL(file) : null 
+  function fileToUrl(file, isBody = false) { 
+    if (!file) return null
+    
+    // Show progress for texture loading
+    const setLoading = isBody ? setBodyTextureLoading : setAlphaTextureLoading
+    const setProgress = isBody ? setBodyTextureProgress : setAlphaTextureProgress
+    
+    setLoading(true)
+    setProgress(0)
+    
+    // Simulate loading progress
+    let progress = 0
+    const interval = setInterval(() => {
+      progress += Math.random() * 30
+      if (progress < 90) {
+        setProgress(progress)
+      }
+    }, 100)
+    
+    // Create URL and finish loading
+    const url = URL.createObjectURL(file)
+    
+    setTimeout(() => {
+      clearInterval(interval)
+      setProgress(100)
+      setTimeout(() => {
+        setLoading(false)
+        setProgress(0)
+      }, 500)
+    }, 800)
+    
+    return url
   }
 
   async function takeScreenshot() {
@@ -181,39 +249,6 @@ export default function ArmadaForm({ models, onSuccess }) {
       console.error('Error taking screenshot:', error)
       alert('Gagal mengambil screenshot: ' + error.message)
     }
-  }
-
-  async function uploadFile(bucket, file, key) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const progress = (e.loaded / e.total) * 100
-          updateProgress(progress, `Uploading ${file.name}...`)
-        }
-      })
-      
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          resolve()
-        } else {
-          reject(new Error(`Upload failed: ${xhr.statusText}`))
-        }
-      }
-      
-      xhr.onerror = () => reject(new Error('Network error during upload'))
-      
-      // Use Supabase storage upload
-      supabase.storage
-        .from(bucket)
-        .upload(key, file)
-        .then(({ error }) => {
-          if (error) reject(error)
-          else resolve()
-        })
-        .catch(reject)
-    })
   }
 
   async function submit() {
@@ -313,6 +348,7 @@ export default function ArmadaForm({ models, onSuccess }) {
   }
 
   const isPreviewReady = previewModelUrl && (previewBodyUrl || previewAlphaUrl)
+  const isTextureLoading = bodyTextureLoading || alphaTextureLoading
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -396,11 +432,18 @@ export default function ArmadaForm({ models, onSuccess }) {
               onChange={e => { 
                 const file = e.target.files?.[0] || null
                 setBodyFile(file)
-                setPreviewBodyUrl(fileToUrl(file))
+                setPreviewBodyUrl(fileToUrl(file, true))
               }}
               disabled={isUploading}
             />
-            <p className="text-xs text-gray-500 mt-1">Texture untuk body bus</p>
+            <p className="text-xs text-gray-500 mt-1">Texture untuk body bus (UV mapping akan dipertahankan)</p>
+            
+            {/* Body texture loading progress */}
+            {bodyTextureLoading && (
+              <div className="mt-2">
+                <LoadingProgress progress={bodyTextureProgress} message="Processing body texture..." />
+              </div>
+            )}
           </div>
           
           <div>
@@ -411,11 +454,18 @@ export default function ArmadaForm({ models, onSuccess }) {
               onChange={e => { 
                 const file = e.target.files?.[0] || null
                 setAlphaFile(file)
-                setPreviewAlphaUrl(fileToUrl(file))
+                setPreviewAlphaUrl(fileToUrl(file, false))
               }}
               disabled={isUploading}
             />
-            <p className="text-xs text-gray-500 mt-1">Texture untuk kaca/alpha channel</p>
+            <p className="text-xs text-gray-500 mt-1">Texture untuk kaca/alpha channel (UV mapping akan dipertahankan)</p>
+            
+            {/* Alpha texture loading progress */}
+            {alphaTextureLoading && (
+              <div className="mt-2">
+                <LoadingProgress progress={alphaTextureProgress} message="Processing alpha texture..." />
+              </div>
+            )}
           </div>
 
           <div>
@@ -453,17 +503,17 @@ export default function ArmadaForm({ models, onSuccess }) {
           )}
         </div>
 
-        {isPreviewReady && !modelLoading && (
+        {isPreviewReady && !modelLoading && !isTextureLoading && (
           <div className="mt-4 p-3 bg-blue-50 rounded">
-            <p className="text-sm text-blue-800 mb-2">✓ Texture siap. Gunakan preview 3D untuk melihat hasil dan ambil screenshot untuk thumbnail.</p>
+            <p className="text-sm text-blue-800 mb-2">✓ Texture siap dengan UV mapping asli. Gunakan preview 3D untuk melihat hasil dan ambil screenshot untuk thumbnail.</p>
           </div>
         )}
       </div>
 
       <div>
         <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold">Preview 3D (16:9)</h3>
-          {isPreviewReady && !modelLoading && (
+          <h3 className="font-semibold">Preview 3D dengan UV Mapping Akurat (16:9)</h3>
+          {isPreviewReady && !modelLoading && !isTextureLoading && (
             <button 
               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
               onClick={takeScreenshot}
@@ -475,12 +525,12 @@ export default function ArmadaForm({ models, onSuccess }) {
         </div>
         
         <LoadingOverlay
-          isVisible={modelLoading || loadingPoses}
-          progress={modelLoading ? modelLoadingProgress : 0}
-          message={modelLoading ? modelLoadingMessage : (loadingPoses ? 'Loading poses...' : '')}
+          isVisible={modelLoading || loadingPoses || isTextureLoading}
+          progress={modelLoading ? modelLoadingProgress : (bodyTextureLoading ? bodyTextureProgress : alphaTextureProgress)}
+          message={modelLoading ? modelLoadingMessage : (loadingPoses ? 'Loading poses...' : (bodyTextureLoading ? 'Processing body texture...' : alphaTextureLoading ? 'Processing alpha texture...' : ''))}
         >
           <div className="border rounded" style={{ width: '100%', aspectRatio: '16/9' }}>
-            {previewModelUrl ? (
+            {previewModelUrl && !isTextureLoading ? (
               <Canvas 
                 camera={{ 
                   position: [5, 2, 5], 
@@ -517,11 +567,11 @@ export default function ArmadaForm({ models, onSuccess }) {
         </LoadingOverlay>
         
         <div className="mt-2 space-y-1 text-xs">
-          {previewBodyUrl && (
-            <div className="text-green-600">✓ Body texture loaded</div>
+          {previewBodyUrl && !bodyTextureLoading && (
+            <div className="text-green-600">✓ Body texture loaded dengan UV mapping asli</div>
           )}
-          {previewAlphaUrl && (
-            <div className="text-green-600">✓ Alpha texture loaded</div>
+          {previewAlphaUrl && !alphaTextureLoading && (
+            <div className="text-green-600">✓ Alpha texture loaded dengan UV mapping asli</div>
           )}
           {selectedPose && (
             <div className="text-blue-600">
@@ -533,14 +583,17 @@ export default function ArmadaForm({ models, onSuccess }) {
         </div>
 
         <div className="mt-4 p-3 bg-gray-50 rounded">
-          <h4 className="font-medium text-sm mb-2">Cara Screenshot HD:</h4>
+          <h4 className="font-medium text-sm mb-2">Cara Screenshot HD dengan UV Mapping Akurat:</h4>
           <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1">
-            <li>Pastikan model dan texture sudah dimuat</li>
+            <li>Pastikan model dan texture sudah dimuat (UV mapping dipertahankan)</li>
             <li>Pilih pose yang sesuai (akan mengatur zoom dan FOV otomatis)</li>
             <li>Atur posisi kamera dengan mouse (drag untuk rotate, scroll untuk zoom)</li>
             <li>Klik tombol "📸 Screenshot HD" untuk ambil gambar 1920x1080</li>
             <li>Screenshot akan otomatis dijadikan thumbnail saat simpan armada</li>
           </ol>
+          <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+            <strong>Perbaikan UV Mapping:</strong> Texture sekarang menggunakan koordinat UV asli dari file GLTF tanpa modifikasi, sehingga livery akan sesuai dengan desain aslinya.
+          </div>
         </div>
       </div>
     </div>
