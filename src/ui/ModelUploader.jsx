@@ -2,10 +2,12 @@ import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUploadProgress } from '../hooks/useUploadProgress'
 import LoadingProgress from '../components/LoadingProgress'
+import { Star } from 'lucide-react'
 
 export default function ModelUploader({ onUploaded }) {
   const [name, setName] = useState('')
   const [file, setFile] = useState(null)
+  const [isEp3, setIsEp3] = useState(false)
   const [fileLoading, setFileLoading] = useState(false)
   const [fileProgress, setFileProgress] = useState(0)
   
@@ -98,7 +100,8 @@ export default function ModelUploader({ onUploaded }) {
       
       const { error: insertErr } = await supabase.from('models').insert({ 
         name, 
-        glb_url: publicUrl 
+        glb_url: publicUrl,
+        is_ep3: isEp3
       })
       
       if (insertErr) throw insertErr
@@ -108,13 +111,14 @@ export default function ModelUploader({ onUploaded }) {
       
       setName('')
       setFile(null)
+      setIsEp3(false)
       
       // Clear file input
       const fileInput = document.querySelector('input[type="file"]')
       if (fileInput) fileInput.value = ''
       
       onUploaded && onUploaded()
-      alert('Model 3D berhasil diupload!')
+      alert(`Model 3D berhasil diupload${isEp3 ? ' (EP3)' : ''}!`)
       
     } catch (e) {
       console.error(e)
@@ -147,6 +151,23 @@ export default function ModelUploader({ onUploaded }) {
           onChange={e => setName(e.target.value)}
           disabled={isUploading || fileLoading}
         />
+
+        <div>
+          <label className="flex items-center space-x-2 mb-3">
+            <input
+              type="checkbox"
+              checked={isEp3}
+              onChange={e => setIsEp3(e.target.checked)}
+              className="rounded"
+              disabled={isUploading || fileLoading}
+            />
+            <Star className="w-4 h-4 text-purple-500" />
+            <span className="text-sm font-medium">Model EP3 (Hanya untuk member EP3)</span>
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            ✓ Jika dicentang, model hanya bisa diakses oleh user dengan akses EP3
+          </p>
+        </div>
         
         <div>
           <label className="block text-sm font-medium mb-1">
@@ -166,6 +187,7 @@ export default function ModelUploader({ onUploaded }) {
             <p className="text-xs text-green-600 mt-1 flex items-center">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
               File 3D siap: {file.name}
+              {isEp3 && <Star className="w-3 h-3 text-purple-500 ml-1" />}
             </p>
           )}
         </div>
@@ -188,8 +210,12 @@ export default function ModelUploader({ onUploaded }) {
         )}
         
         {file && !fileLoading && !isUploading && (
-          <div className="p-2 bg-green-50 rounded text-xs text-green-700">
-            <strong>File siap untuk upload:</strong> UV mapping akan dipertahankan sesuai aslinya untuk memastikan texture livery sesuai dengan desain.
+          <div className={`p-2 rounded text-xs ${
+            isEp3 
+              ? 'bg-purple-50 text-purple-700' 
+              : 'bg-green-50 text-green-700'
+          }`}>
+            <strong>File siap untuk upload{isEp3 ? ' (EP3)' : ''}:</strong> UV mapping akan dipertahankan sesuai aslinya untuk memastikan texture livery sesuai dengan desain.
           </div>
         )}
       </div>

@@ -8,12 +8,13 @@ import ModelsPage from './pages/ModelsPage'
 import PosesPage from './pages/PosesPage'
 import ArmadaPage from './pages/ArmadaPage'
 import TestingLiveryPage from './pages/TestingLiveryPage'
+import UsersPage from './pages/UsersPage'
 import Footer from './components/Footer'
-import { LogOut, User, Menu, X } from 'lucide-react'
+import { LogOut, User, Menu, X, Star } from 'lucide-react'
 
 function AppContent() {
   const location = useLocation()
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, isEp3 } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
   const isActive = (path) => {
@@ -27,6 +28,7 @@ function AppContent() {
       { path: '/models', label: 'Models', shortLabel: 'Models' },
       { path: '/poses', label: 'Poses', shortLabel: 'Poses' },
       { path: '/armada', label: 'Armada', shortLabel: 'Armada' },
+      { path: '/users', label: 'Users', shortLabel: 'Users' },
     ] : []),
     { path: '/testing', label: 'Testing Livery', shortLabel: 'Testing' }
   ]
@@ -80,8 +82,13 @@ function AppContent() {
                   <User className="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" />
                 </div>
                 <div className="hidden md:block min-w-0">
-                  <div className="font-medium text-slate-900 text-xs sm:text-sm truncate">{user?.name}</div>
-                  <div className="text-xs text-slate-500 capitalize">{user?.role}</div>
+                  <div className="flex items-center gap-1">
+                    <div className="font-medium text-slate-900 text-xs sm:text-sm truncate">{user?.name}</div>
+                    {isEp3 && <Star className="w-3 h-3 text-purple-500" title="EP3 Access" />}
+                  </div>
+                  <div className="text-xs text-slate-500 capitalize">
+                    {isAdmin ? 'Administrator' : 'User'}
+                  </div>
                 </div>
               </div>
               
@@ -131,8 +138,11 @@ function AppContent() {
               {/* User info in mobile menu */}
               <div className="pt-2 mt-2 border-t border-slate-100">
                 <div className="px-3 py-2 text-xs text-slate-500">
-                  Logged in as <span className="font-medium text-slate-700">{user?.name}</span>
-                  <span className="ml-1 capitalize">({user?.role})</span>
+                  <div className="flex items-center gap-2">
+                    <span>Logged in as <span className="font-medium text-slate-700">{user?.name}</span></span>
+                    {isEp3 && <Star className="w-3 h-3 text-purple-500" />}
+                  </div>
+                  <span className="capitalize">({isAdmin ? 'Administrator' : 'User'})</span>
                 </div>
               </div>
             </div>
@@ -171,6 +181,13 @@ function AppContent() {
             <ProtectedRoute requireAdmin={true}>
               <div className="p-4 sm:p-6 lg:p-8">
                 <ArmadaPage />
+              </div>
+            </ProtectedRoute>
+          } />
+          <Route path="/users" element={
+            <ProtectedRoute requireAdmin={true}>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <UsersPage />
               </div>
             </ProtectedRoute>
           } />

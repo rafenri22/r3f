@@ -3,11 +3,12 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useModel3DLoader } from '../hooks/useModel3DLoader'
 import { addWatermark } from '../utils/watermark'
 import LoadingOverlay from '../components/LoadingOverlay'
 import LoadingProgress from '../components/LoadingProgress'
-import { Download, Upload, Image as ImageIcon, Camera, Settings, Monitor } from 'lucide-react'
+import { Download, Upload, Image as ImageIcon, Camera, Settings, Monitor, Star, Lock } from 'lucide-react'
 
 function BusModel({ glbUrl, bodyUrl, alphaUrl, zoom, fov }) {
   const { scene } = useGLTF(glbUrl)
@@ -145,6 +146,7 @@ function CaptureHelper({ onReady }) {
 }
 
 export default function TestingLiveryPage() {
+  const { isEp3 } = useAuth()
   const [models, setModels] = useState([])
   const [selectedModelId, setSelectedModelId] = useState('')
   const [bodyFile, setBodyFile] = useState(null)
@@ -181,7 +183,16 @@ export default function TestingLiveryPage() {
   async function loadModels() {
     try {
       setLoading(true)
-      const { data } = await supabase.from('models').select('*').order('name')
+      
+      // Load models based on user access
+      let query = supabase.from('models').select('*').order('name')
+      
+      // If user doesn't have EP3 access, exclude EP3 models
+      if (!isEp3) {
+        query = query.eq('is_ep3', false)
+      }
+      
+      const { data } = await query
       setModels(data || [])
     } catch (error) {
       console.error('Error loading models:', error)
@@ -323,7 +334,15 @@ export default function TestingLiveryPage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Testing Livery</h1>
-          <p className="text-sm sm:text-base text-slate-600">Preview dan unduh desain livery armada TJA</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm sm:text-base text-slate-600">Preview dan unduh desain livery armada TJA</p>
+            {isEp3 && (
+              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                <Star className="w-3 h-3 mr-1" />
+                EP3 Access
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
@@ -347,9 +366,29 @@ export default function TestingLiveryPage() {
                 >
                   <option value="">-- Pilih Model Bus --</option>
                   {models.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                      {m.is_ep3 && ' ⭐'}
+                    </option>
                   ))}
                 </select>
+                
+                {models.length === 0 && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      {isEp3 ? 'Tidak ada model tersedia' : 'Upgrade ke EP3 untuk akses lebih banyak model'}
+                    </span>
+                  </div>
+                )}
+                
+                {!isEp3 && models.length > 0 && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      💡 Upgrade ke EP3 untuk akses model premium
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -553,6 +592,12 @@ export default function TestingLiveryPage() {
                             <ImageIcon className="w-6 h-6 text-slate-400" />
                           </div>
                           <div className="text-sm sm:text-base">Upload texture untuk melihat preview</div>
+                          {selectedModel.is_ep3 && (
+                            <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                              <Star className="w-3 h-3 mr-1" />
+                              EP3 Model
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center p-4">
@@ -587,6 +632,7 @@ export default function TestingLiveryPage() {
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">
                     💡 Download untuk mendapatkan gambar 1920x1080 HD
+                    {isEp3 && <span className="ml-2">⭐ EP3 Access Active</span>}
                   </p>
                 </div>
               </div>
