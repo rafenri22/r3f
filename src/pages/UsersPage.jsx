@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import bcrypt from 'bcryptjs'
 import { UserPlus, Edit2, Trash2, User, Crown, Star } from 'lucide-react'
 
 export default function UsersPage() {
@@ -60,10 +59,9 @@ export default function UsersPage() {
           updated_at: new Date().toISOString()
         }
 
-        // Only update password if provided
+        // Only update password if provided (plain text)
         if (formData.password) {
-          const hashedPassword = await bcrypt.hash(formData.password, 10)
-          updateData.password = hashedPassword
+          updateData.password = formData.password
         }
 
         const { error } = await supabase
@@ -75,15 +73,13 @@ export default function UsersPage() {
 
         alert('User berhasil diperbarui!')
       } else {
-        // Create new user
-        const hashedPassword = await bcrypt.hash(formData.password, 10)
-        
+        // Create new user (plain text password)
         const { error } = await supabase
           .from('users')
           .insert({
             username: formData.username,
             email: formData.email,
-            password: hashedPassword,
+            password: formData.password, // Plain text password
             is_admin: formData.is_admin,
             is_ep3: formData.is_ep3
           })
@@ -212,10 +208,11 @@ export default function UsersPage() {
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Password"
+                  placeholder="Password (plain text)"
                   disabled={formLoading}
                   required={!editUser}
                 />
+                <p className="text-xs text-slate-500 mt-1">Password disimpan sebagai plain text</p>
               </div>
 
               <div className="space-y-2">
@@ -309,6 +306,9 @@ export default function UsersPage() {
                           )}
                         </div>
                         <p className="text-sm text-slate-600">{user.email}</p>
+                        <p className="text-xs text-slate-400">
+                          Password: {user.password} (plain text)
+                        </p>
                         <p className="text-xs text-slate-500">
                           Dibuat: {new Date(user.created_at).toLocaleDateString('id-ID')}
                         </p>
@@ -338,6 +338,17 @@ export default function UsersPage() {
           )}
         </div>
       )}
+
+      {/* Info Panel */}
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+        <h4 className="font-semibold text-blue-900 mb-2">Informasi Sistem Authentication</h4>
+        <div className="text-sm text-blue-800 space-y-1">
+          <p>• Password sekarang menggunakan <strong>plain text</strong> (tidak di-encrypt)</p>
+          <p>• Default users: admin/admin123, ep3user/user123, user/user123</p>
+          <p>• Admin dapat mengelola semua users dan mengakses semua fitur</p>
+          <p>• EP3 users dapat mengakses model premium</p>
+        </div>
+      </div>
     </div>
   )
 }

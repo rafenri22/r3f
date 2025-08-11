@@ -20,13 +20,24 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     
-    const result = login(username, password)
-    
-    if (!result.success) {
-      setError(result.error)
+    try {
+      console.log('Attempting login with:', { username, password })
+      
+      const result = await login(username, password)
+      
+      console.log('Login result:', result)
+      
+      if (!result.success) {
+        setError(result.error)
+      }
+      // Jika sukses, AuthContext akan mengupdate user state dan redirect otomatis
+      
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Terjadi kesalahan sistem. Silakan coba lagi.')
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   return (
@@ -37,11 +48,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl mb-4 shadow-2xl">
-            <span className="text-2xl font-bold text-white">TJA</span>
+          <div className="flex items-center justify-center">
+                  <img 
+                    src="tja.png" 
+                    alt="Logo TJA" 
+                    className="w-20 h-20 sm:w-20 sm:h-20 object-contain"
+                  />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Portal TJA</h1>
-          <p className="text-slate-400">Masuk ke sistem manajemen armada</p>
+          <p className="text-slate-400">Masuk ke sistem terintegrasi PT. Trijaya Agung Lestari</p>
         </div>
 
         {/* Login Form */}
@@ -116,7 +131,7 @@ export default function LoginPage() {
                 </>
               )}
             </button>
-          </form>          
+          </form>
         </div>
 
         {/* Footer */}

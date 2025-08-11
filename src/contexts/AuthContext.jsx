@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import bcrypt from 'bcryptjs'
 
 const AuthContext = createContext()
 
@@ -56,6 +55,8 @@ export function AuthProvider({ children }) {
 
   async function login(username, password) {
     try {
+      console.log('Attempting login for username:', username)
+      
       // Get user from database
       const { data: userData, error } = await supabase
         .from('users')
@@ -63,14 +64,22 @@ export function AuthProvider({ children }) {
         .eq('username', username)
         .single()
 
+      console.log('Database query result:', { userData, error })
+
       if (error || !userData) {
+        console.log('User not found or database error')
         return { success: false, error: 'Username atau password salah' }
       }
 
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, userData.password)
-      
-      if (!isPasswordValid) {
+      console.log('Comparing passwords:', {
+        inputPassword: password,
+        dbPassword: userData.password,
+        match: password === userData.password
+      })
+
+      // Simple string comparison for password (plain text)
+      if (password !== userData.password) {
+        console.log('Password mismatch')
         return { success: false, error: 'Username atau password salah' }
       }
 
@@ -84,13 +93,15 @@ export function AuthProvider({ children }) {
         name: userData.is_admin ? 'Administrator' : userData.username
       }
 
+      console.log('Login successful, creating session:', userSession)
+
       setUser(userSession)
       localStorage.setItem('portalTjaUser', JSON.stringify(userSession))
       
       return { success: true }
     } catch (error) {
       console.error('Login error:', error)
-      return { success: false, error: 'Terjadi kesalahan sistem' }
+      return { success: false, error: 'Terjadi kesalahan sistem: ' + error.message }
     }
   }
 
